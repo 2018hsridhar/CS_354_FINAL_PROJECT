@@ -79,8 +79,12 @@ CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/component_wise.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/component_wise.inl
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/dual_quaternion.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/dual_quaternion.inl
+CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/optimum_pow.hpp
+CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/optimum_pow.inl
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/rotate_vector.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/rotate_vector.inl
+CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/spline.hpp
+CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/spline.inl
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/string_cast.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/string_cast.inl
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/gtx/transform.hpp
@@ -102,6 +106,9 @@ CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/vec2.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/vec3.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/vec4.hpp
 CMakeFiles/assignment.dir/assignment.cpp.o: ../glm/vector_relational.hpp
+CMakeFiles/assignment.dir/assignment.cpp.o: ../json_spirit/json_spirit_error_position.h
+CMakeFiles/assignment.dir/assignment.cpp.o: ../json_spirit/json_spirit_reader_template.h
+CMakeFiles/assignment.dir/assignment.cpp.o: ../json_spirit/json_spirit_value.h
 CMakeFiles/assignment.dir/assignment.cpp.o: /usr/local/include/GLFW/glfw3.h
 CMakeFiles/assignment.dir/assignment.cpp.o: ../assignment.cpp
 

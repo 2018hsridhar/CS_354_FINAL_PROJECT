@@ -1,0 +1,65 @@
+[
+  {
+    "type" : "attribute",
+    "frames" : [{"diffuse_color" : "(1, 0, 0)"}],
+    "shade_mode" : "phong",
+    "children" : [
+      {
+        "type" : "attribute",
+        "frames" : [{"diffuse_color" : "(0, 0, 1)"}],
+        "shade_mode" : "flat",
+        "children" : [{
+          "type" : "transform",
+          "frames" : [{"translate" : "(0, -0.1, 0)"}],
+          "children" : [{"type" : "geometry", "mesh" : "obj/bunny.obj"}]
+        }]
+      },
+      {
+        "type" : "attribute",
+        "frames" : [{"diffuse_color" : "(0, 1, 1)"}],
+        "shade_mode" : "flat",
+        "children" : [{
+          "type" : "transform",
+          "frames" : [{"translate" : "(0, 0.1, 0)"}],
+          "children" : [{"type" : "geometry", "mesh" : "obj/bunny.obj"}]
+        }]
+      },
+      {
+        "type" : "attribute",
+        "frames" : [{"diffuse_color" : "(1, 0, 1)"}],
+        "children" : [{
+          "type" : "transform",
+          "frames" : [{"translate" : "(-0.17, 0, 0)"}],
+          "children" : [{"type" : "geometry", "mesh" : "obj/bunny.obj"}]
+        }]
+      },
+      {
+        "type" : "attribute",
+        "frames" : [{"diffuse_color" : "(1, 1, 1)"}],
+        "children" : [{
+          "type" : "transform",
+          "frames" : [{"translate" : "(0.17, 0, 0)"}],
+          "children" : [{"type" : "geometry", "mesh" : "obj/bunny.obj"}]
+        }]
+      }
+    ]
+  },
+  {
+    "type" : "transform",
+    "frames" :
+        [{"translate" : "(-0.025, 0.1, 0.4)", "rotate" : "(0, 1, 0, 0)"}],
+    "children" : [{
+      "type" : "camera",
+      "projection" : "perspective",
+      "fov" : "45",
+      "near" : "0.001",
+      "far" : "1000",
+      "id" : "0"
+    }]
+  },
+  {
+    "type" : "transform",
+    "frames" : [{"translate" : "(10, 10, 10)"}],
+    "children" : [{"type" : "light", "frames" : [{"color":"(1,1,1)"}]}]
+  }
+]

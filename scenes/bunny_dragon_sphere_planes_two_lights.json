@@ -1,0 +1,120 @@
+[
+  {
+    "type" : "attribute",
+    "frames" : [{"diffuse_color" : "(0.5, 0.5, 0.5)"}],
+    "shade_mode" : "flat",
+    "children" : [{
+      "type" : "transform",
+      "frames" : [{
+        "translate" : "(0,0.035,0)",
+        "scale" : "(0.5, 0.5, 1)",
+        "rotate" : "(1,0,0,-90)"
+      }],
+      "children" : [{"type" : "geometry", "mesh" : "obj/plane.obj"}]
+    }]
+  },
+  {
+    "type" : "attribute",
+    "frames" : [{"diffuse_color" : "(0.5, 0.5, 0.5)"}],
+    "shade_mode" : "flat",
+    "children" : [{
+      "type" : "transform",
+      "frames" : [{"translate" : "(0,0.25,-0.5)", "scale" : "(0.5, 0.5, 1)"}],
+      "children" : [{"type" : "geometry", "mesh" : "obj/plane.obj"}]
+    }]
+  },
+  {
+    "type" : "attribute",
+    "frames" : [{"diffuse_color" : "(1, 0, 0)"}],
+    "shade_mode" : "phong",
+    "children" : [{
+      "type" : "transform",
+      "frames" : [{
+        "translate" : "(-0.02, 0.015, -0.015)",
+        "rotate" : "(0, 1, 0, -40)",
+        "scale" : "(0.85,0.85,0.85)"
+      }],
+      "children" : [{"type" : "geometry", "mesh" : "obj/dragon.obj"}]
+    }]
+  },
+  {
+    "type" : "attribute",
+    "frames" : [{"diffuse_color" : "(0, 1, 0)"}],
+    "shade_mode" : "phong",
+    "children" : [{
+      "type" : "transform",
+      "frames" : [{
+        "translate" : "(-0.2,0,0)",
+        "rotate" : "(0, 1, 0, 45)",
+        "scale" : "(0.9,0.9,0.9)"
+      }],
+      "children" : [{"type" : "geometry", "mesh" : "obj/bunny.obj"}]
+    }]
+  },
+  {
+    "type" : "attribute",
+    "frames" : [{"diffuse_color" : "(0, 0, 1)"}],
+    "shade_mode" : "phong",
+    "children" : [{
+      "type" : "transform",
+      "frames" :
+          [{"translate" : "(0.17,0.02,0)", "scale" : "(0.75, 0.75, 0.75)"}],
+      "children" : [{"type" : "geometry", "mesh" : "obj/sphere.obj"}]
+    }]
+  },
+  {
+    "type" : "transform",
+    "frames" :
+        [{"translate" : "(-0.025, 0.1, 0.4)", "rotate" : "(0, 1, 0, 0)"}],
+    "children" : [{
+      "type" : "camera",
+      "id" : "0",
+      "projection" : "perspective",
+      "fov" : "45",
+      "near" : "0.001",
+      "far" : "1000"
+    }]
+  },
+  {
+    "type" : "transform",
+    "frames" : [{"translate" : "(0, 0.25, 0.1)"}],
+    "children" : [
+      {
+        "type" : "attribute",
+        "shade_mode" : "none",
+        "frames" : [{"diffuse_color" : "(0, 1, 1)"}],
+        "children" : [{
+          "type" : "transform",
+          "frames" : [{"scale" : "(.1,.1,.1)"}],
+          "children" : [{"type" : "geometry", "mesh" : "obj/sphere.obj"}]
+        }]
+      },
+      {
+        "type" : "light",
+        "attenuation" : "(1, 0.5, 0.1)",
+        "frames" : [{"color" : "(1,1,1)"}]
+      }
+    ]
+  },
+  {
+    "type" : "transform",
+    "frames" : [{"translate" : "(0, 0.25, -0.1)"}],
+    "children" : [
+      {
+        "type" : "attribute",
+        "shade_mode" : "none",
+        "frames" : [{"diffuse_color" : "(1, 1, 0)"}],
+        "children" : [{
+          "type" : "transform",
+          "frames" : [{"scale" : "(.1,.1,.1)"}],
+          "children" : [{"type" : "geometry", "mesh" : "obj/sphere.obj"}]
+        }]
+      },
+      {
+        "type" : "light",
+        "attenuation" : "(1, 0.5, 0.1)",
+        "frames" : [{"color" : "(1,1,1)"}]
+      }
+    ]
+  }
+]

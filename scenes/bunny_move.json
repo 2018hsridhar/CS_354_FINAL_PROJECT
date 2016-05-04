@@ -1,0 +1,54 @@
+[
+  {
+    "type" : "attribute",
+    "interpolate_mode" : "spline",
+    "frames" : [{"diffuse_color" : "(0.5, 0.5, 0.5)"}],
+    "shade_mode" : "flat",
+    "children" :
+    [{
+       "type" : "transform",
+       "frames" :[
+         {"translate" : "(-0.15, 0.0, 0.0)", "t" : "0"},
+         {"translate" : "(-0.15, 0.0, 0.0)", "t" : "50"},
+         {"translate" : "(0.15, 0.0, 0.0)", "t" : "100"},
+         {"translate" : "(-0.15, 0.2, 0.0)", "t" : "350"},
+         {"translate" : "(0.1, 0.0, 0.0)", "t" : "500"},
+         {"translate" : "(-0.15, 0.0, 0.0)", "t" : "600"}
+       ],
+       "children" : [{"type" : "geometry", "mesh" : "obj/bunny.obj"}]
+     }]
+  },
+  {
+    "type" : "transform",
+    "frames" : [{"translate" : "(0, 0.1, 0.4)", "rotate" : "(0, 1, 0, 0)"}],
+    "children" : [{
+                    "type" : "camera",
+                    "id" : "0",
+                    "projection" : "perspective",
+                    "fov" : "45",
+                    "near" : "0.001",
+                    "far" : "1000"
+                  }]
+  },
+  {
+    "type" : "transform",
+    "frames" :[
+      {"rotate" : "(0, 1, 0, 0)"},
+      {"rotate" : "(0, 1, 0, 90)", "t" : "50"},
+      {"rotate" : "(0, 1, 0, 180)", "t" : "100"},
+      {"rotate" : "(0, 1, 0, 270)", "t" : "350"},
+      {"rotate" : "(0, 1, 0, 360)", "t" : "500"}
+    ],
+    "children" : [{
+                    "type" : "light",
+                    "light_type" : "directional",
+                    "frames" :[
+                      {"color" : "(1, 1, 1)", "t" : "50"},
+                      {"color" : "(1, 0, 0)", "t" : "100"},
+                      {"color" : "(0, 1, 0)", "t" : "350"},
+                      {"color" : "(0, 0, 1)", "t" : "500"},
+                      {"color" : "(1, 1, 1)", "t" : "600"}
+                    ]
+                  }]
+  }
+]

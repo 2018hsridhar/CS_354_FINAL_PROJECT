@@ -1,6 +1,6 @@
 FILE(REMOVE_RECURSE
-  "CMakeFiles/assignment.dir/spring.cpp.o"
   "CMakeFiles/assignment.dir/assignment.cpp.o"
+  "CMakeFiles/assignment.dir/spring.cpp.o"
   "bin/assignment.pdb"
   "bin/assignment"
 )
