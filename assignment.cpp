@@ -22,6 +22,10 @@
 float curTime = 0.0;
 float timeStep = 0.017;  // analogy to 60 fps
 
+int max_x_mass_id = 0; //surface vertic
+int max_y_mass_id = 0; //
+int max_z_mass_id = 0; //
+
 std::vector<Spring> mass_springs;
 
 std::ostream& operator<<(std::ostream& os, const glm::vec2& v) {
@@ -503,26 +507,26 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	
 		// at frame ( time t = 0), apply one force in (x,y,z) direction to 
 		// surface element mass whose (x,y,z) postion is largest positively 
-		float max_x =  std::numeric_limits<float>::min();
-		float max_y =  std::numeric_limits<float>::min();
-		float max_z =  std::numeric_limits<float>::min();
+    float max_x =  std::numeric_limits<float>::min(); //surface vertic
+    float max_y =  std::numeric_limits<float>::min(); //
+    float max_z =  std::numeric_limits<float>::min(); //
 
 		for(int i = 0; i < masses.size(); i++) {
 			if(masses[i]->pos.x > max_x){ 
-				max_x = masses[i]->pos.x;
-				max_mass = i;
+				//max_x = masses[i]->pos.x;
+				max_x_mass_id = i;
 			}
 			if(masses[i]->pos.y > max_y){ 
-				max_y = masses[i]->pos.y;
-				max_mass = i;
+				//max_y = masses[i]->pos.y;
+				max_y_mass_id = i;
 			}
 			if(masses[i]->pos.z > max_z){ 
-				max_z = masses[i]->pos.z;
-				max_mass = i;
+				//max_z = masses[i]->pos.z;
+				max_z_mass_id = i;
 			}
 		}
 			
-		masses[max_id]->applyForce(glm::vec3(0,0,-1));  // can change this, if needed later ( needs to be surface vertex right)
+		    masses[max_y_mass_id]->applyForce(glm::vec3(0,0,-1));  // can change this, if needed later ( needs to be surface vertex right)
      }
 	
 	 }
@@ -544,16 +548,16 @@ void drawCube(std::vector<glm::vec4>& vertices,
             masses[x]->springs = spring;
         }
 
-        for(int x =0; x<masses.size(); x++)
-        {
-            std::cout<<masses[x]->m_id<<std::endl;
-            std::cout<<masses[x]->pos.x <<"   "<< masses[x]->pos.y<<"   "<< masses[x]->pos.z<<std::endl;
-            for(int y = 0; y<masses[x]->springs.size(); ++y)
-            {           
-               std::cout<<(mass_springs[x*6+y].getMassB())->m_id;
-            }
-            std::cout<<"\n"<<std::endl;
-        }
+        // for(int x =0; x<masses.size(); x++)
+        // {
+        //     std::cout<<masses[x]->m_id<<std::endl;
+        //     std::cout<<masses[x]->pos.x <<"   "<< masses[x]->pos.y<<"   "<< masses[x]->pos.z<<std::endl;
+        //     for(int y = 0; y<masses[x]->springs.size(); ++y)
+        //     {           
+        //        std::cout<<(mass_springs[x*6+y].getMassB())->m_id;
+        //     }
+        //     std::cout<<"\n"<<std::endl;
+        // }
     }
 
 
