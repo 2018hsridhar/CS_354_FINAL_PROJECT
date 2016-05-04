@@ -17,6 +17,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+std::vector<Spring> mass_springs;
+
 std::ostream& operator<<(std::ostream& os, const glm::vec2& v) {
   os << glm::to_string(v);
   return os;
@@ -83,7 +85,6 @@ std::vector<glm::vec4> menger_vertices;
 std::vector<glm::uvec3> menger_faces;
 
 std::vector<Mass*> masses;
-std::vector<Spring*> springs;
 
 std::vector<glm::vec4> plane_vertices;
 std::vector<glm::uvec3> plane_faces;
@@ -470,16 +471,16 @@ void drawCube(std::vector<glm::vec4>& vertices,
        }
     }
 
-    // // 2. calculate distances
-    // std::sort(distances.begin(),distances.end(), 
-    //   [](DIST x, DIST y)->bool
-    //     {
-    //         return x.dist < y.dist; 
-    //     }
-    //   );
+    // 2. calculate distances
+    std::sort(distances.begin(),distances.end(), 
+      [](DIST x, DIST y)->bool
+        {
+            return x.dist < y.dist; 
+        }
+      );
 
-		// 3. get 6 closest vertices
-    for(int j = 0; j < 5; j++) {
+		//3. get 6 closest vertices
+    for(int j = 0; j < 6; j++) {
       closest_vertices.push_back(distances[j].id);
     }
 		return closest_vertices;
@@ -491,13 +492,54 @@ void drawCube(std::vector<glm::vec4>& vertices,
    //std::vector<glm::uvec3> menger_faces;
 
 	  // vertex list has a direct relationship to the map list ( one-to-one)
-	 	for(int i = 0; i < masses.size(); i++)
-	 	{
+	 	 for(int i = 0; i < masses.size(); i++)
+	 	 {
        		std::vector<int> six_neighbors = getNeighbors(i); 
        		masses[i]->neighbors = six_neighbors;
-	 	}
+	 	 }
+
+     for(int x =0; x<masses.size(); x++)
+     {
+        std::cout<<masses[x]->m_id<<std::endl;
+        //std::cout<<masses[x]->pos.x <<"   "<< masses[x]->pos.y<<"   "<< masses[x]->pos.z<<std::endl;
+        for(int y = 0; y<masses[x]->neighbors.size(); ++y)
+        {           
+            std::cout<<masses[x]->neighbors[y];
+        }
+        std::cout<<"end neiboers \n"<<std::endl;
+     }
+     
 
 	 }
+
+   void setupSpring()
+   {
+        int index =0;
+        for(int x =0; x<masses.size(); x++)
+        {
+            std::vector<int> spring;
+            for(int y = 0; y<masses[x]->neighbors.size(); ++y)
+            {  
+                int num = masses[x]->neighbors[y];
+                Spring s(index, masses[x], masses[num]);
+                spring.push_back(index);
+                mass_springs.push_back(s);
+                index++;
+            }
+            masses[x]->springs = spring;
+        }
+
+        for(int x =0; x<masses.size(); x++)
+        {
+            std::cout<<masses[x]->m_id<<std::endl;
+            std::cout<<masses[x]->pos.x <<"   "<< masses[x]->pos.y<<"   "<< masses[x]->pos.z<<std::endl;
+            for(int y = 0; y<masses[x]->springs.size(); ++y)
+            {           
+               std::cout<<(mass_springs[x*6+y].getMassB())->m_id;
+            }
+            std::cout<<"\n"<<std::endl;
+        }
+    }
 
 
 
@@ -801,6 +843,7 @@ int main(int argc, char* argv[]) {
   std::string file_name = "obj/sphere.obj";
   LoadObj(file_name, menger_vertices, menger_faces);
   Load_SpringSystem();
+  setupSpring();
   CreatePlane();
   std::cout << "Loaded plane and vertices geometries" << std::endl; 
 

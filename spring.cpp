@@ -45,6 +45,11 @@ void Mass::updatePos(float time_diff)
 	pos += (vel * time_diff) + (0.5f * acc * (time_diff * time_diff));
 }
 
+int Mass::getID()
+{
+	return m_id;
+}
+
 Spring::Spring(int new_id, Mass *_A, Mass *_B)
 {
 	A = _A;
@@ -53,6 +58,11 @@ Spring::Spring(int new_id, Mass *_A, Mass *_B)
 	disp = 0; 
 	equil_len = glm::distance(_A->pos, _B->pos);
 	
+}
+
+Mass* Spring::getMassB()
+{
+	return B;
 }
 
 glm::vec3 Spring::calc_SpringForce()

@@ -33,6 +33,7 @@ struct Mass
 	void applyForce(glm::vec3(force));
 	void updateVel(float time_diff);
 	void updatePos(float time_diff);
+	int getID();
 
 };
 
@@ -44,10 +45,10 @@ class Spring
 	float kCoeff = 1.0; // find some number online, or just test our yourself
 	float equil_len;
 	float disp; // (-) displacement = compressed, (+) displacement = stretched
-
+public:
 	/*! Constructs a spring, with 2 masses. */
 	Spring(int s_id, Mass *a, Mass *b);
-		
+	Mass* getMassB();
 	/*! Methods for spring class */
 	glm::vec3 calc_SpringForce();
 
