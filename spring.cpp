@@ -7,6 +7,13 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+Mass::Mass(int new_id, glm::vec3 _pos)
+{
+	m_id = new_id;
+	pos = _pos;
+}
+
+/*
 Mass::Mass(int new_id, glm::vec3 _pos, std::vector<int> _neighbors, std::vector<int> _springs)  
 {
 	m_id = new_id;
@@ -14,6 +21,7 @@ Mass::Mass(int new_id, glm::vec3 _pos, std::vector<int> _neighbors, std::vector<
 	neighbors = _neighbors;
 	springs = _springs;
 }
+*/
 
 void Mass::init()
 {

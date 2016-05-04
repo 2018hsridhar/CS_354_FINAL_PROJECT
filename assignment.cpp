@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_access.hpp>
@@ -80,6 +81,10 @@ int L = 0; // global variable (helps with easy manipulation)
 float aspect = 0.0f;
 std::vector<glm::vec4> menger_vertices;
 std::vector<glm::uvec3> menger_faces;
+
+std::vector<Mass*> masses;
+std::vector<Spring*> springs;
+
 std::vector<glm::vec4> plane_vertices;
 std::vector<glm::uvec3> plane_faces;
 ////////////////////////////////////////////
@@ -418,30 +423,82 @@ void drawCube(std::vector<glm::vec4>& vertices,
 		drawPlane();
 	}
 
-  void LoadObj(const std::string& file, std::vector<glm::vec4>& vertices,
-             std::vector<glm::uvec3>& indices) {
-  std::ifstream in(file);
-  int i = 0, j = 0;
-  glm::vec4 vertex = glm::vec4(0.0, 0.0, 0.0, 1.0);
-  glm::uvec3 face_indices = glm::uvec3(0, 0, 0);
-  while (in.good()) {
-    char c = in.get();
-    switch (c) {
-      case 'v':
-        in >> vertex[0] >> vertex[1] >> vertex[2];
-        vertices.push_back(vertex);
-        break;
-      case 'f':
-        in >> face_indices[0] >> face_indices[1] >> face_indices[2];
-        face_indices -= 1;
-        indices.push_back(face_indices);
-        break;
-      default:
-        break;
+	void LoadObj(const std::string& file, std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices) {
+		std::ifstream in(file);
+		int i = 0, j = 0;
+		glm::vec4 vertex = glm::vec4(0.0, 0.0, 0.0, 1.0);
+		glm::uvec3 face_indices = glm::uvec3(0, 0, 0);
+		while (in.good()) {
+			char c = in.get();
+			switch (c) {
+			case 'v':
+				in >> vertex[0] >> vertex[1] >> vertex[2];
+				vertices.push_back(vertex);
+
+          ////////////////////////////
+        // Masses and vertices have a one-to-one mapping
+          masses.push_back(new Mass(i,glm::vec3(menger_vertices[i])));
+          ////////////////////////////
+            i++;
+				break;
+			case 'f':
+				in >> face_indices[0] >> face_indices[1] >> face_indices[2];
+				face_indices -= 1;
+				indices.push_back(face_indices);
+				break;
+			default:
+				break;
+			}
+		}
+		in.close();
+	}
+
+	std::vector<int>  getNeighbors(int x)
+	{
+		
+		// 1. iterate over all vertices
+    std::vector<int> closest_vertices;
+    std::vector<DIST> distances;
+    for(int i = 0; i< masses.size(); i++)
+    {
+       if(i != x) {
+          float distance = glm::distance(masses[x]->pos, masses[i]->pos);
+          struct DIST new_dist_obj;
+          new_dist_obj.dist = distance;
+          new_dist_obj.id = masses[i]->m_id;
+          distances.push_back(new_dist_obj);
+       }
     }
-  }
-  in.close();
-}
+
+    // // 2. calculate distances
+    // std::sort(distances.begin(),distances.end(), 
+    //   [](DIST x, DIST y)->bool
+    //     {
+    //         return x.dist < y.dist; 
+    //     }
+    //   );
+
+		// 3. get 6 closest vertices
+    for(int j = 0; j < 5; j++) {
+      closest_vertices.push_back(distances[j].id);
+    }
+		return closest_vertices;
+	}
+
+	 void Load_SpringSystem()
+	 {
+   //std::vector<glm::vec4> menger_vertices;
+   //std::vector<glm::uvec3> menger_faces;
+
+	  // vertex list has a direct relationship to the map list ( one-to-one)
+	 	for(int i = 0; i < masses.size(); i++)
+	 	{
+       		std::vector<int> six_neighbors = getNeighbors(i); 
+       		masses[i]->neighbors = six_neighbors;
+	 	}
+
+	 }
+
 
 
     void ErrorCallback(int error, const char* description) {
@@ -743,6 +800,7 @@ int main(int argc, char* argv[]) {
   //CreateMenger(menger_vertices, menger_faces);
   std::string file_name = "obj/sphere.obj";
   LoadObj(file_name, menger_vertices, menger_faces);
+  Load_SpringSystem();
   CreatePlane();
   std::cout << "Loaded plane and vertices geometries" << std::endl; 
 

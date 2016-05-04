@@ -8,6 +8,12 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+struct DIST
+{
+	int id;
+	float dist;
+};
+
 struct Mass
 {
 	int m_id;
@@ -19,7 +25,8 @@ struct Mass
 	std::vector<int> springs;
 
 	/*! Constructs a mass with a position, set of neighboring masses, and set of springs. */
-	Mass(int m_id, glm::vec3(_pos), std::vector<int> _neighbors, std::vector<int> _springs);
+//	Mass(int m_id, glm::vec3(_pos), std::vector<int> _neighbors, std::vector<int> _springs);
+	Mass(int new_id, glm::vec3 _pos);
 
 	/*! Methods for mass struct */
 	void init(); 						// reset all force values to 0
