@@ -29,7 +29,7 @@ struct Mass
 	Mass(int new_id, glm::vec3 _pos);
 
 	/*! Methods for mass struct */
-	void init(); 						// reset all force values to 0
+	void zero_out_forces(); 						// reset all force values to 0
 	void applyForce(glm::vec3(force));
 	void updateVel(float time_diff);
 	void updatePos(float time_diff);

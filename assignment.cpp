@@ -1,3 +1,5 @@
+#include <
+#include <limits>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -16,6 +18,9 @@
 // OpenGL library includes
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
+float curTime = 0.0;
+float timeStep = 0.017;  // analogy to 60 fps
 
 std::vector<Spring> mass_springs;
 
@@ -36,6 +41,7 @@ std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
 
 int window_width = 800, window_height = 600;
 const std::string window_title = "Menger";
+int max_id = 0; // for vertex that initial force is applied to
 
 // Menger info.
 const int kMinLevel = 0;
@@ -454,62 +460,71 @@ void drawCube(std::vector<glm::vec4>& vertices,
 		in.close();
 	}
 
+	//////////////////////////////////////
 	std::vector<int>  getNeighbors(int x)
 	{
 		
 		// 1. iterate over all vertices
-    std::vector<int> closest_vertices;
-    std::vector<DIST> distances;
-    for(int i = 0; i< masses.size(); i++)
-    {
-       if(i != x) {
-          float distance = glm::distance(masses[x]->pos, masses[i]->pos);
-          struct DIST new_dist_obj;
-          new_dist_obj.dist = distance;
-          new_dist_obj.id = masses[i]->m_id;
-          distances.push_back(new_dist_obj);
-       }
-    }
+		std::vector<int> closest_vertices;
+		std::vector<DIST> distances;
+		for(int i = 0; i< masses.size(); i++)
+		{
+			if(i != x) {
+				float distance = glm::distance(masses[x]->pos, masses[i]->pos);
+				struct DIST new_dist_obj;
+				new_dist_obj.dist = distance;
+				new_dist_obj.id = masses[i]->m_id;
+				distances.push_back(new_dist_obj);
+		}
+		}
 
-    // 2. calculate distances
-    std::sort(distances.begin(),distances.end(), 
-      [](DIST x, DIST y)->bool
-        {
-            return x.dist < y.dist; 
-        }
-      );
+		// 2. calculate distances
+		std::sort(distances.begin(),distances.end(), 
+		[](DIST x, DIST y)->bool
+			{
+				return x.dist < y.dist; 
+			}
+		);
 
-		//3. get 6 closest vertices
-    for(int j = 0; j < 6; j++) {
-      closest_vertices.push_back(distances[j].id);
-    }
-		return closest_vertices;
+			//3. get 6 closest vertices
+		for(int j = 0; j < 6; j++) {
+		closest_vertices.push_back(distances[j].id);
+		}
+			return closest_vertices;
 	}
 
-	 void Load_SpringSystem()
-	 {
-   //std::vector<glm::vec4> menger_vertices;
-   //std::vector<glm::uvec3> menger_faces;
+	void Load_SpringSystem()
+	{
 
-	  // vertex list has a direct relationship to the map list ( one-to-one)
-	 	 for(int i = 0; i < masses.size(); i++)
-	 	 {
-       		std::vector<int> six_neighbors = getNeighbors(i); 
-       		masses[i]->neighbors = six_neighbors;
-	 	 }
+		// vertex list has a direct relationship to the map list ( one-to-one)
+			for(int i = 0; i < masses.size(); i++) {
+				masses[i]->neighbors = six_neighbors;
+			}
+	
+		// at frame ( time t = 0), apply one force in (x,y,z) direction to 
+		// surface element mass whose (x,y,z) postion is largest positively 
+		float max_x =  std::numeric_limits<float>::min();
+		float max_y =  std::numeric_limits<float>::min();
+		float max_z =  std::numeric_limits<float>::min();
 
-     for(int x =0; x<masses.size(); x++)
-     {
-        std::cout<<masses[x]->m_id<<std::endl;
-        //std::cout<<masses[x]->pos.x <<"   "<< masses[x]->pos.y<<"   "<< masses[x]->pos.z<<std::endl;
-        for(int y = 0; y<masses[x]->neighbors.size(); ++y)
-        {           
-            std::cout<<masses[x]->neighbors[y];
-        }
-        std::cout<<"end neiboers \n"<<std::endl;
+		for(int i = 0; i < masses.size(); i++) {
+			if(masses[i]->pos.x > max_x){ 
+				max_x = masses[i]->pos.x;
+				max_mass = i;
+			}
+			if(masses[i]->pos.y > max_y){ 
+				max_y = masses[i]->pos.y;
+				max_mass = i;
+			}
+			if(masses[i]->pos.z > max_z){ 
+				max_z = masses[i]->pos.z;
+				max_mass = i;
+			}
+		}
+			
+		masses[max_id]->applyForce(glm::vec3(0,0,-1));  // can change this, if needed later ( needs to be surface vertex right)
      }
-     
-
+	
 	 }
 
    void setupSpring()
@@ -1006,6 +1021,7 @@ int main(int argc, char* argv[]) {
 // rendering loop - swich between VAO and VBOs
 
   while (!glfwWindowShouldClose(window)) {
+
     // Setup some basic window stuff.
     glfwGetFramebufferSize(window, &window_width, &window_height);
     glViewport(0, 0, window_width, window_height);
@@ -1023,6 +1039,34 @@ int main(int argc, char* argv[]) {
 	glm::mat4 view_matrix = LookAt(eye, center, up); 
 	aspect = static_cast<float>(window_width) / window_height;
     glm::mat4 projection_matrix = Perspective(45.0f, aspect, 0.0001f, 1000.0f);
+
+	///////////////////////////////////////////////////
+	///////////////////////////////////////////////////
+	/* SIMULATION CODE */
+
+	// [1] set all NET forces to 0
+	for(int j = 0; j < masses.size(); j++) {
+		masses[j]->zero_out_forces();
+	}
+
+	// [2] set positive force to largest surface element
+	if(curTime < 20) {
+		 masses[max_id]->applyForce(glm::vec3(1,1,1)); 
+	}
+
+	// [3] calculate and apply all external forces to each mass
+	// start out as a tree, from mass id = m[0]
+	// need to keep a set of visited masses, based on their ids
+	if(curTime > 0)
+	{
+		// use timeStep and old stuff
+			
+	}	
+
+	// 4[] Calculate $q_i, v_i$ for each mass $ mi \in M $
+
+	///////////////////////////////////////////////////
+	///////////////////////////////////////////////////
 
     // Switch to our Menger VAO.
     CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
@@ -1068,6 +1112,8 @@ int main(int argc, char* argv[]) {
 	// Go back to the old VAO ( menger vertices and faces )
 	// not needed to switch back 
   	//CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
+
+	curTime += timeStep;
  
     // Poll and swap.
     glfwPollEvents();

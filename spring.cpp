@@ -13,17 +13,7 @@ Mass::Mass(int new_id, glm::vec3 _pos)
 	pos = _pos;
 }
 
-/*
-Mass::Mass(int new_id, glm::vec3 _pos, std::vector<int> _neighbors, std::vector<int> _springs)  
-{
-	m_id = new_id;
-	pos = _pos;
-	neighbors = _neighbors;
-	springs = _springs;
-}
-*/
-
-void Mass::init()
+void Mass::zero_out_forces()
 {
 	force = glm::vec3(0,0,0);
 }
@@ -65,9 +55,10 @@ Mass* Spring::getMassB()
 	return B;
 }
 
+// this returns the magnitude of the spring force!!!
 glm::vec3 Spring::calc_SpringForce()
 {
-	return glm::vec3(kCoeff * disp,kCoeff * disp,kCoeff * disp);
+	return glm::distance(glm::vec3(kCoeff * disp, kCoeff * disp, kCoeff * disp));
 }
 
 
