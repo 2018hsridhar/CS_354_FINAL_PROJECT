@@ -1,4 +1,3 @@
-#include <
 #include <limits>
 #include <fstream>
 #include <iostream>
@@ -20,7 +19,7 @@
 #include <GLFW/glfw3.h>
 
 float curTime = 0.0;
-float timeStep = 0.017;  // analogy to 60 fps
+float timeStep = 0.0033f;  // analogy to 60 fps
 
 int max_x_mass_id = 0; //surface vertic
 int max_y_mass_id = 0; //
@@ -95,6 +94,9 @@ std::vector<glm::vec4> menger_vertices;
 std::vector<glm::uvec3> menger_faces;
 
 std::vector<Mass*> masses;
+std::vector<int> visited_Masses;
+//glm::vec3 init_Force = glm::vec3(1,1,1);
+glm::vec3 init_Force = glm::vec3(0,0,1);
 
 std::vector<glm::vec4> plane_vertices;
 std::vector<glm::uvec3> plane_faces;
@@ -474,7 +476,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 		for(int i = 0; i< masses.size(); i++)
 		{
 			if(i != x) {
-				float distance = glm::distance(masses[x]->pos, masses[i]->pos);
+				float distance = glm::distance(masses[x]->curr_pos, masses[i]->curr_pos);
 				struct DIST new_dist_obj;
 				new_dist_obj.dist = distance;
 				new_dist_obj.id = masses[i]->m_id;
@@ -497,12 +499,38 @@ void drawCube(std::vector<glm::vec4>& vertices,
 			return closest_vertices;
 	}
 
+	// need to keep a set of visited masses, based on their ids
+	// timestep t = 0.017
+	// make sure this is not incorrect
+	void calc_NetForces(int mass_id)
+	{
+		// base case :: if our mass has already been visited
+		if(std::find(visited_Masses.begin(), visited_Masses.end(), mass_id) != visited_Masses.end()) {
+			return;	
+		}
+		else
+		{
+			// calculate spring forces, add them
+
+			
+							
+
+
+			// add current mass to visited set, AND recurse down neighbors
+			visited_Masses.push_back(mass_id);
+			std::vector<int> neighbors = masses[mass_id]->neighbors;
+			for(int i = 0; i < neighbors.size(); i++) {
+				calc_NetForces(neighbors[i]);
+			}
+		}
+	}
+
 	void Load_SpringSystem()
 	{
 
 		// vertex list has a direct relationship to the map list ( one-to-one)
 			for(int i = 0; i < masses.size(); i++) {
-				masses[i]->neighbors = six_neighbors;
+				masses[i]->neighbors = getNeighbors(i);
 			}
 	
 		// at frame ( time t = 0), apply one force in (x,y,z) direction to 
@@ -512,24 +540,20 @@ void drawCube(std::vector<glm::vec4>& vertices,
     float max_z =  std::numeric_limits<float>::min(); //
 
 		for(int i = 0; i < masses.size(); i++) {
-			if(masses[i]->pos.x > max_x){ 
-				//max_x = masses[i]->pos.x;
+			if(masses[i]->curr_pos.x > max_x){ 
 				max_x_mass_id = i;
 			}
-			if(masses[i]->pos.y > max_y){ 
-				//max_y = masses[i]->pos.y;
+			if(masses[i]->curr_pos.y > max_y){ 
 				max_y_mass_id = i;
 			}
-			if(masses[i]->pos.z > max_z){ 
-				//max_z = masses[i]->pos.z;
+			if(masses[i]->curr_pos.z > max_z){ 
 				max_z_mass_id = i;
 			}
 		}
-			
-		    masses[max_y_mass_id]->applyForce(glm::vec3(0,0,-1));  // can change this, if needed later ( needs to be surface vertex right)
+			max_id = max_z_mass_id;
+		    //masses[max_z_mass_id]->applyForce(glm::vec3(0,0,-1));  // can change this, if needed later ( needs to be surface vertex right)
      }
 	
-	 }
 
    void setupSpring()
    {
@@ -1046,29 +1070,46 @@ int main(int argc, char* argv[]) {
 
 	///////////////////////////////////////////////////
 	///////////////////////////////////////////////////
-	/* SIMULATION CODE */
+	/* SIMULATION CODE 
+	 * [1] set all NET forces to 0
+	 * [2] set positive force to largest surface element
+	 * [3] calculate q_i for each m_i
+	 * [4] calculate and apply all external forces to each mass
+	 * [5] calculate v_i for each m_i
+	 */
 
-	// [1] set all NET forces to 0
-	for(int j = 0; j < masses.size(); j++) {
-		masses[j]->zero_out_forces();
-	}
+	visited_Masses.clear();
 
-	// [2] set positive force to largest surface element
-	if(curTime < 20) {
-		 masses[max_id]->applyForce(glm::vec3(1,1,1)); 
-	}
+	 // [3] calculate q_i for each m_i
+		for(int j = 0; j < masses.size(); j++) {
+			masses[j]->zero_out_forces();
+			masses[max_id]->updatePos(timeStep);
+		}
 
-	// [3] calculate and apply all external forces to each mass
-	// start out as a tree, from mass id = m[0]
-	// need to keep a set of visited masses, based on their ids
-	if(curTime > 0)
-	{
-		// use timeStep and old stuff
-			
-	}	
+	 // [4] calculate and apply all external forces to each mass
+		for(int j = 0; j < masses.size(); j++) {
+			calc_NetForces(j);
+		}
 
-	// 4[] Calculate $q_i, v_i$ for each mass $ mi \in M $
+	 // [5] calculate v_i for each m_i
+		for(int j = 0; j < masses.size(); j++) {
+			masses[max_id]->updateVel(timeStep);
+		}
+		menger_vertices.clear();
+		for(int j = 0; j < masses.size(); j++) {
+			menger_vertices.push_back(glm::vec4(masses[j]->curr_pos,1));
+		} 
 
+		/*! INSERT OPENGL CODE HERE TO REPASS VERTICES */
+		// each bind buffer call is separete 
+  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
+
+  		CHECK_GL_ERROR(
+   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
+	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+					sizeof(float) * menger_vertices.size() * 4,
+					&menger_vertices[0], GL_STATIC_DRAW));
+	
 	///////////////////////////////////////////////////
 	///////////////////////////////////////////////////
 

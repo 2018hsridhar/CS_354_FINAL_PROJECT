@@ -10,7 +10,8 @@
 Mass::Mass(int new_id, glm::vec3 _pos)
 {
 	m_id = new_id;
-	pos = _pos;
+	curr_pos = _pos;
+	old_pos = curr_pos;
 }
 
 void Mass::zero_out_forces()
@@ -32,7 +33,8 @@ void Mass::updateVel(float time_diff)
 void Mass::updatePos(float time_diff)
 {
 	glm::vec3 acc = force * (1.0f / m);
-	pos += (vel * time_diff) + (0.5f * acc * (time_diff * time_diff));
+	old_pos = curr_pos;
+	curr_pos = curr_pos + (vel * time_diff);
 }
 
 int Mass::getID()
@@ -46,7 +48,7 @@ Spring::Spring(int new_id, Mass *_A, Mass *_B)
 	B = _B;
 	s_id = new_id;	
 	disp = 0; 
-	equil_len = glm::distance(_A->pos, _B->pos);
+	equil_len = glm::distance(_A->curr_pos, _B->curr_pos);
 	
 }
 
@@ -56,9 +58,9 @@ Mass* Spring::getMassB()
 }
 
 // this returns the magnitude of the spring force!!!
-glm::vec3 Spring::calc_SpringForce()
+float Spring::calc_SpringForce()
 {
-	return glm::distance(glm::vec3(kCoeff * disp, kCoeff * disp, kCoeff * disp));
+	return kCoeff * disp;
 }
 
 
