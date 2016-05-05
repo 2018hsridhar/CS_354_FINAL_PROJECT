@@ -99,7 +99,7 @@ std::vector<glm::uvec3> menger_faces;
 /*! for generating the small sphers to help visualize deformations */
 std::vector<glm::vec4> base_sphere_vertices;
 std::vector<glm::uvec3> base_sphere_faces;
-glm::vec4 base_center = glm::vec4(0,0.1,0,1); // homogenous coordinates ( world matrix system )
+glm::vec4 base_center = glm::vec4(0,0.005,0,1); // homogenous coordinates ( world matrix system ) - needs to be small sphere center
 
 std::vector<glm::vec4> small_sphere_vertices;
 std::vector<glm::uvec3> small_sphere_faces;
@@ -488,6 +488,7 @@ void CreatePlane(){
 			{
 				// calculate vector, from base_center, to menger_vertex 
 				glm::vec4 offset_vector = menger_vertices[i] - base_center;
+				//std::cout << to_string(offset_vector) << std::endl;
 				for(int j = 0; j < base_sphere_vertices.size();j++) 
 				{
 					glm::vec4 shifted_vertex = 	base_sphere_vertices[j] + offset_vector;
@@ -495,7 +496,6 @@ void CreatePlane(){
 				}
 			}
 
-			// to get the faces correctly [ is this incorrect ]???
 			//for(int i = 0; i < menger_faces.size();i++) 
 			for(int i = 0; i < menger_vertices.size();i++) 
 			{
@@ -505,13 +505,11 @@ void CreatePlane(){
 				int face_offset = 62 * i; 
 				for(int j = 0; j < base_sphere_faces.size();j++)  // base_sphere_faces has 120 faces 
 				{
-						glm::vec3 init_faceValues = base_sphere_faces[j];
+					glm::vec3 init_faceValues = base_sphere_faces[j];
 					glm::vec3 new_faceValues = init_faceValues + glm::vec3(face_offset,face_offset,face_offset);
 					small_sphere_faces.push_back(new_faceValues);
-				//	std::cout << to_string(new_faceValues) << std::endl;
 				}
 			}
-			//std::cout << small_sphere_faces.size() << std::endl;
 	}
 
 	void setupSpring()
@@ -731,8 +729,6 @@ void CreatePlane(){
 	Load_SpringSystem();
 	setupSpring();
 	load_smallSpheres();
-		std::cout << "size of small sphere vertices = " << small_sphere_vertices.size() << std::endl;
-		std::cout << "size of small sphere faces = " << small_sphere_faces.size() << std::endl;
 	
 	// set floor hit status for each mass, m_{i}, to FALSE
 	for(int i = 0; i < masses.size(); i++)
