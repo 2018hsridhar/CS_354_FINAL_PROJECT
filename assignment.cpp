@@ -26,6 +26,7 @@ int max_y_mass_id = 0; //
 int max_z_mass_id = 0; //
 
 bool force_applied = false;
+bool hit_floor = false;
 
 std::vector<Spring> mass_springs;
 
@@ -507,7 +508,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	/* PROBABLY BUGGY */
 	void calc_NetForces(int mass_id)
 	{
-		 if(curTime <= 0.030 && force_applied==false)
+		 if(curTime <= 0.010 && force_applied==false)
      {
         masses[max_id]->applyForce(init_Force);
         force_applied = true;
@@ -547,8 +548,13 @@ void drawCube(std::vector<glm::vec4>& vertices,
 				spring_force = force_dir * mass_springs[i].calc_SpringForce();
 			}
 
+			glm::vec3 dampening = mass_springs[i].calc_Dampening(masses[mass_id]->vel);
+			//std::cout << "spring force = " << to_string(spring_force) << std::endl;
+			//std::cout << "damepning force = " << to_string(dampening) << std::endl;
+
 			// apply spring forces ( to A and B)
 			self->applyForce(spring_force);
+			self->applyForce(dampening);
 			other->applyForce(-1.0f * spring_force);
 
 		}
@@ -1012,6 +1018,22 @@ int main(int argc, char* argv[]) {
 		for(int j = 0; j < masses.size(); j++) {
 			calc_NetForces(masses[j]->m_id);
 		}
+
+		/*
+		for(int j = 0; j < masses.size(); j++) {
+			if(masses[j]->curr_pos.y <= -1)
+			{
+				hit_floor = true;
+				break;
+			}
+			masses[j]->applyForce(glm::vec3(0,-0.098,0));
+		}
+		if(hit_floor) {
+			for(int j = 0; j < masses.size(); j++) {
+				masses[j]->applyForce(glm::vec3(0,2,0));
+			}
+		}
+		*/
 
 	 // [5] calculate v_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {

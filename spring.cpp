@@ -72,5 +72,7 @@ float Spring::calc_SpringForce()
 	return kCoeff * disp;
 }
 
-
-
+glm::vec3 Spring::calc_Dampening(glm::vec3 _vel)
+{
+	return -1.0f * kDamp * _vel;
+}
