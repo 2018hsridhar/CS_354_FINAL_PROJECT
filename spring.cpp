@@ -32,7 +32,6 @@ void Mass::updateVel(float time_diff)
 
 void Mass::updatePos(float time_diff)
 {
-	glm::vec3 acc = force * (1.0f / m);
 	old_pos = curr_pos;
 	curr_pos = curr_pos + (vel * time_diff);
 }
@@ -50,6 +49,16 @@ Spring::Spring(int new_id, Mass *_A, Mass *_B)
 	disp = 0; 
 	equil_len = glm::distance(_A->curr_pos, _B->curr_pos);
 	
+}
+
+Mass* Spring::getMassA()
+{
+	return A;
+}
+
+void Spring::setDisplacement(float _disp)
+{
+	disp = _disp;
 }
 
 Mass* Spring::getMassB()

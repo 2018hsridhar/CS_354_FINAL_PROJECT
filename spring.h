@@ -17,11 +17,11 @@ struct DIST
 struct Mass
 {
 	int m_id;
-	float m;	
-	glm::vec3 old_pos;
-	glm::vec3 curr_pos;
-	glm::vec3 vel;
-	glm::vec3 force;
+	float m = 1.0;	
+	glm::vec3 old_pos = glm::vec3(0,0,0);
+	glm::vec3 curr_pos = glm::vec3(0,0,0);
+	glm::vec3 vel = glm::vec3(0,0,0);
+	glm::vec3 force = glm::vec3(0,0,0);
 	std::vector<int> neighbors;
 	std::vector<int> springs;
 
@@ -43,15 +43,17 @@ class Spring
 	Mass *A;
 	Mass *B;
 	float kCoeff = 1.0; // find some number online, or just test our yourself
-	float equil_len;
-	float disp; // (-) displacement = compressed, (+) displacement = stretched
+	float equil_len = 0;
+	float disp = 0; // (-) displacement = compressed, (+) displacement = stretched
 
 public:
 	/*! Constructs a spring, with 2 masses. */
 	Spring(int s_id, Mass *a, Mass *b);
+	Mass* getMassA();
 	Mass* getMassB();
 	/*! Methods for spring class */
 	float calc_SpringForce();
+	void setDisplacement(float _disp);
 
 };
 

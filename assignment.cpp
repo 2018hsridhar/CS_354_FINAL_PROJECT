@@ -502,6 +502,8 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	// need to keep a set of visited masses, based on their ids
 	// timestep t = 0.017
 	// make sure this is not incorrect
+
+	/* PROBABLY BUGGY */
 	void calc_NetForces(int mass_id)
 	{
 		// base case :: if our mass has already been visited
@@ -510,11 +512,43 @@ void drawCube(std::vector<glm::vec4>& vertices,
 		}
 		else
 		{
+
+			if(curTime <= 0.010)
+				masses[max_id]->applyForce(init_Force);
+
 			// calculate spring forces, add them
 
-			
-							
+			std::vector<int> my_springs = masses[mass_id]->springs;
+			for(int i = 0; i < my_springs.size(); i++) {
 
+				// get spring masses and vectors for masses
+				Mass *self = mass_springs[i].getMassA();
+				Mass *other = mass_springs[i].getMassB();
+
+				glm::vec3 v_1 = self->old_pos - other->old_pos;
+				glm::vec3 v_2 = self->curr_pos - other->curr_pos;
+
+				// calculate how far spring has been displaced 
+				float disp = glm::length(v_2) - glm::length(v_1);
+				mass_springs[i].setDisplacement(disp);
+				glm::vec3 spring_force = glm::vec3(0,0,0);
+
+				// calculate spring force, based on displacement (q_{i+1}) 
+				if(disp > 0) {
+					glm::vec3 force_dir = glm::normalize(other->curr_pos - self->curr_pos);
+					spring_force = force_dir * mass_springs[i].calc_SpringForce();
+				}
+				else {
+					glm::vec3 force_dir = glm::normalize(self->curr_pos - other->curr_pos);
+					spring_force = force_dir * mass_springs[i].calc_SpringForce();
+				}
+
+				// apply spring forces ( to A and B)
+				self->applyForce(spring_force);
+				other->applyForce(-1.0f * spring_force);
+
+			}
+			
 
 			// add current mass to visited set, AND recurse down neighbors
 			visited_Masses.push_back(mass_id);
@@ -535,9 +569,9 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	
 		// at frame ( time t = 0), apply one force in (x,y,z) direction to 
 		// surface element mass whose (x,y,z) postion is largest positively 
-    float max_x =  std::numeric_limits<float>::min(); //surface vertic
-    float max_y =  std::numeric_limits<float>::min(); //
-    float max_z =  std::numeric_limits<float>::min(); //
+		float max_x =  std::numeric_limits<float>::min(); //surface vertic
+		float max_y =  std::numeric_limits<float>::min(); //
+		float max_z =  std::numeric_limits<float>::min(); //
 
 		for(int i = 0; i < masses.size(); i++) {
 			if(masses[i]->curr_pos.x > max_x){ 
@@ -551,7 +585,6 @@ void drawCube(std::vector<glm::vec4>& vertices,
 			}
 		}
 			max_id = max_z_mass_id;
-		    //masses[max_z_mass_id]->applyForce(glm::vec3(0,0,-1));  // can change this, if needed later ( needs to be surface vertex right)
      }
 	
 
@@ -594,12 +627,8 @@ void drawCube(std::vector<glm::vec4>& vertices,
 		    int mods) {
 
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-	glfwSetWindowShouldClose(window, GL_TRUE);
+		glfwSetWindowShouldClose(window, GL_TRUE);
     else if (key == GLFW_KEY_W && action != GLFW_RELEASE) {
-
-		// note :: the differences are what get's manipulated and how (center vs eye)
-
-	//	if(!fps_mode) { // orbital mode
 
 			glm::vec3 center_old = eye + (camera_distance * look);
 
@@ -652,10 +681,6 @@ void drawCube(std::vector<glm::vec4>& vertices,
 
     } else if (key == GLFW_KEY_DOWN && action != GLFW_RELEASE) {
 
-		// note :: ther DOES NOT EXIST A DISTINCTION BETWEEN 
-		// FPS VS ORBITAL MODE WHEN MANIPULATING (CENTER|EYE)
-		// SINCE THE CENTER IS NEVER TRACKED AND LOOK IS A VECTOR CONST IN DIRECTion
-
 		glm::vec3 tangent = glm::cross(look,up);
 
 		glm::vec3 center = eye + (camera_distance * look);
@@ -676,109 +701,6 @@ void drawCube(std::vector<glm::vec4>& vertices,
 
     } else if (key == GLFW_KEY_C && action != GLFW_RELEASE)
 		fps_mode = !fps_mode;
-
-	// why do the keyboard presses no longer work though?
-    else if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
-
-	    L = 0;
-		CreateMenger(menger_vertices, menger_faces);
-
-  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
-
-		// each bind buffer call is separete 
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(float) * menger_vertices.size() * 4,
-					&menger_vertices[0], GL_STATIC_DRAW));
-
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kIndexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-					sizeof(uint32_t) * menger_faces.size() * 3,
-					&menger_faces[0], GL_STATIC_DRAW));
-
-    } else if (key == GLFW_KEY_1 && action != GLFW_RELEASE) {
-
-		L = 1;
-		CreateMenger(menger_vertices, menger_faces);
-
-  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
-
-		// each bind buffer call is separete 
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(float) * menger_vertices.size() * 4,
-					&menger_vertices[0], GL_STATIC_DRAW));
-
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kIndexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-					sizeof(uint32_t) * menger_faces.size() * 3,
-					&menger_faces[0], GL_STATIC_DRAW));
-
-
-    } else if (key == GLFW_KEY_2 && action != GLFW_RELEASE) {
-
-		L = 2;
-		CreateMenger(menger_vertices, menger_faces);
-
-  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
-
-		// each bind buffer call is separete 
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(float) * menger_vertices.size() * 4,
-					&menger_vertices[0], GL_STATIC_DRAW));
-
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kIndexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-					sizeof(uint32_t) * menger_faces.size() * 3,
-					&menger_faces[0], GL_STATIC_DRAW));
-
-    } else if (key == GLFW_KEY_3 && action != GLFW_RELEASE) {
-
-		L = 3;
-		CreateMenger(menger_vertices, menger_faces);
-
-  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
-
-		// each bind buffer call is separete 
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(float) * menger_vertices.size() * 4,
-					&menger_vertices[0], GL_STATIC_DRAW));
-
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kIndexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-					sizeof(uint32_t) * menger_faces.size() * 3,
-					&menger_faces[0], GL_STATIC_DRAW));
-
-    } else if (key == GLFW_KEY_4 && action != GLFW_RELEASE) {
-
-		L = 4;
-		CreateMenger(menger_vertices, menger_faces);
-
-  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
-
-		// each bind buffer call is separete 
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(float) * menger_vertices.size() * 4,
-					&menger_vertices[0], GL_STATIC_DRAW));
-
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kIndexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-					sizeof(uint32_t) * menger_faces.size() * 3,
-					&menger_faces[0], GL_STATIC_DRAW));
-	}		
 }
 
 // I'm not sure what the significance of screen coordinates are here
@@ -880,13 +802,13 @@ int main(int argc, char* argv[]) {
 
 
 
-	//Load geometries to render
-
-  //CreateMenger(menger_vertices, menger_faces);
+	// spring system geometries, from scene graph object files
   std::string file_name = "obj/sphere.obj";
   LoadObj(file_name, menger_vertices, menger_faces);
   Load_SpringSystem();
   setupSpring();
+
+	// Plane
   CreatePlane();
   std::cout << "Loaded plane and vertices geometries" << std::endl; 
 
@@ -1076,14 +998,17 @@ int main(int argc, char* argv[]) {
 	 * [3] calculate q_i for each m_i
 	 * [4] calculate and apply all external forces to each mass
 	 * [5] calculate v_i for each m_i
+	 * [6] reset menger vertices to new, physically simulated, vertices
 	 */
 
-	visited_Masses.clear();
+		visited_Masses.clear();
 
 	 // [3] calculate q_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {
 			masses[j]->zero_out_forces();
-			masses[max_id]->updatePos(timeStep);
+			//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
+			masses[j]->updatePos(timeStep);
+			//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
 		}
 
 	 // [4] calculate and apply all external forces to each mass
@@ -1093,8 +1018,11 @@ int main(int argc, char* argv[]) {
 
 	 // [5] calculate v_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {
-			masses[max_id]->updateVel(timeStep);
+			masses[j]->updateVel(timeStep);
+			//std::cout << "Mass [ " << j << "] has velocity = " << masses[j]->vel << std::endl;
 		}
+
+	// [6] reset menger vertices to new, physically simulated, vertices
 		menger_vertices.clear();
 		for(int j = 0; j < masses.size(); j++) {
 			menger_vertices.push_back(glm::vec4(masses[j]->curr_pos,1));
