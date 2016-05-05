@@ -506,57 +506,45 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	/* PROBABLY BUGGY */
 	void calc_NetForces(int mass_id)
 	{
-		// base case :: if our mass has already been visited
-		if(std::find(visited_Masses.begin(), visited_Masses.end(), mass_id) != visited_Masses.end()) {
-			return;	
-		}
-		else
+		if(curTime <= 0.030 && mass_id == max_id)
+			masses[max_id]->applyForce(init_Force);
+
+		// calculate spring forces, add them
+		std::vector<int> my_springs = masses[mass_id]->springs;
+		for(int i = 0; i < my_springs.size(); i++) 
 		{
 
-			if(curTime <= 0.010)
-				masses[max_id]->applyForce(init_Force);
+			// get spring masses and vectors for masses
+			Mass *self = mass_springs[i].getMassA();
+			Mass *other = mass_springs[i].getMassB();
 
-			// calculate spring forces, add them
+			glm::vec3 v_1 = self->old_pos - other->old_pos;
+			glm::vec3 v_2 = self->curr_pos - other->curr_pos;
 
-			std::vector<int> my_springs = masses[mass_id]->springs;
-			for(int i = 0; i < my_springs.size(); i++) {
+			// calculate how far spring has been displaced 
+			float disp = glm::length(v_2) - glm::length(v_1);
+			mass_springs[i].setDisplacement(disp);
+			glm::vec3 spring_force = glm::vec3(0,0,0);
 
-				// get spring masses and vectors for masses
-				Mass *self = mass_springs[i].getMassA();
-				Mass *other = mass_springs[i].getMassB();
-
-				glm::vec3 v_1 = self->old_pos - other->old_pos;
-				glm::vec3 v_2 = self->curr_pos - other->curr_pos;
-
-				// calculate how far spring has been displaced 
-				float disp = glm::length(v_2) - glm::length(v_1);
-				mass_springs[i].setDisplacement(disp);
-				glm::vec3 spring_force = glm::vec3(0,0,0);
-
-				// calculate spring force, based on displacement (q_{i+1}) 
-				if(disp > 0) {
-					glm::vec3 force_dir = glm::normalize(other->curr_pos - self->curr_pos);
-					spring_force = force_dir * mass_springs[i].calc_SpringForce();
-				}
-				else {
-					glm::vec3 force_dir = glm::normalize(self->curr_pos - other->curr_pos);
-					spring_force = force_dir * mass_springs[i].calc_SpringForce();
-				}
-
-				// apply spring forces ( to A and B)
-				self->applyForce(spring_force);
-				other->applyForce(-1.0f * spring_force);
-
+			// calculate spring force, based on displacement (q_{i+1}) 
+			if(disp > 0) 
+			{
+				glm::vec3 force_dir = glm::normalize(other->curr_pos - self->curr_pos);
+				spring_force = force_dir * mass_springs[i].calc_SpringForce();
 			}
-			
-
-			// add current mass to visited set, AND recurse down neighbors
-			visited_Masses.push_back(mass_id);
-			std::vector<int> neighbors = masses[mass_id]->neighbors;
-			for(int i = 0; i < neighbors.size(); i++) {
-				calc_NetForces(neighbors[i]);
+			else 
+			{
+				glm::vec3 force_dir = glm::normalize(self->curr_pos - other->curr_pos);
+				spring_force = force_dir * mass_springs[i].calc_SpringForce();
 			}
+
+			// apply spring forces ( to A and B)
+			self->applyForce(spring_force);
+			other->applyForce(-1.0f * spring_force);
+
 		}
+		
+
 	}
 
 	void Load_SpringSystem()
