@@ -19,11 +19,13 @@
 #include <GLFW/glfw3.h>
 
 float curTime = 0.0;
-float timeStep = 0.0033f;  // analogy to 60 fps
+float timeStep = 0.0066f;  // analogy to 60 fps
 
 int max_x_mass_id = 0; //surface vertic
 int max_y_mass_id = 0; //
 int max_z_mass_id = 0; //
+
+bool force_applied = false;
 
 std::vector<Spring> mass_springs;
 
@@ -95,7 +97,7 @@ std::vector<glm::uvec3> menger_faces;
 
 std::vector<Mass*> masses;
 std::vector<int> visited_Masses;
-glm::vec3 init_Force = glm::vec3(0,1,0);
+glm::vec3 init_Force = glm::vec3(0,5,0);
 
 std::vector<glm::vec4> plane_vertices;
 std::vector<glm::uvec3> plane_faces;
@@ -505,17 +507,24 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	/* PROBABLY BUGGY */
 	void calc_NetForces(int mass_id)
 	{
-		if(curTime <= 0.030 && mass_id == max_id)
-			masses[max_id]->applyForce(init_Force);
+		 if(curTime <= 0.030 && force_applied==false)
+     {
+        masses[max_id]->applyForce(init_Force);
+        force_applied = true;
+     }
+		 	
 
-		// calculate spring forces, add them
+		//calculate spring forces, add them
 		std::vector<int> my_springs = masses[mass_id]->springs;
 		for(int i = 0; i < my_springs.size(); i++) 
 		{
-
+  
 			// get spring masses and vectors for masses
-			Mass *self = mass_springs[i].getMassA();
-			Mass *other = mass_springs[i].getMassB();
+			Mass *self = mass_springs[my_springs[i]].getMassA();
+			Mass *other = mass_springs[my_springs[i]].getMassB();
+      // std::cout<<"mass_id "<<mass_id<<std::endl;
+      // std::cout<<"self_id "<<self->m_id<<std::endl;
+      // std::cout<<"other_id "<<other->m_id<<std::endl;
 
 			glm::vec3 v_1 = self->old_pos - other->old_pos;
 			glm::vec3 v_2 = self->curr_pos - other->curr_pos;
@@ -524,7 +533,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 			float disp = glm::length(v_2) - glm::length(v_1);
 			mass_springs[i].setDisplacement(disp);
 			glm::vec3 spring_force = glm::vec3(1,1,1);
-			//std::cout << "disp = " << disp << std::endl;
+			// std::cout << "disp = " << disp << std::endl;
 
 			// calculate spring force, based on displacement (q_{i+1}) 
 			if(disp >= 0) 
@@ -540,9 +549,10 @@ void drawCube(std::vector<glm::vec4>& vertices,
 
 			// apply spring forces ( to A and B)
 			self->applyForce(spring_force);
-			//other->applyForce(1.0f * spring_force);
+			other->applyForce(-1.0f * spring_force);
 
 		}
+
 		
 
 	}
@@ -596,10 +606,11 @@ void drawCube(std::vector<glm::vec4>& vertices,
         // for(int x =0; x<masses.size(); x++)
         // {
         //     std::cout<<masses[x]->m_id<<std::endl;
-        //     std::cout<<masses[x]->pos.x <<"   "<< masses[x]->pos.y<<"   "<< masses[x]->pos.z<<std::endl;
+            
         //     for(int y = 0; y<masses[x]->springs.size(); ++y)
-        //     {           
-        //        std::cout<<(mass_springs[x*6+y].getMassB())->m_id;
+        //     {
+        //      std::cout<<"A    "<<(mass_springs[x*6+y].getMassA())->m_id<<std::endl;           
+        //        std::cout<<"B  "<<(mass_springs[x*6+y].getMassB())->m_id<<std::endl;
         //     }
         //     std::cout<<"\n"<<std::endl;
         // }
