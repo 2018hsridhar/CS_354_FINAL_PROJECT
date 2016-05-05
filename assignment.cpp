@@ -96,7 +96,7 @@ std::vector<glm::uvec3> menger_faces;
 std::vector<Mass*> masses;
 std::vector<int> visited_Masses;
 //glm::vec3 init_Force = glm::vec3(1,1,1);
-glm::vec3 init_Force = glm::vec3(0,0,1);
+glm::vec3 init_Force = glm::vec3(0,1,0);
 
 std::vector<glm::vec4> plane_vertices;
 std::vector<glm::uvec3> plane_faces;
@@ -524,10 +524,10 @@ void drawCube(std::vector<glm::vec4>& vertices,
 			// calculate how far spring has been displaced 
 			float disp = glm::length(v_2) - glm::length(v_1);
 			mass_springs[i].setDisplacement(disp);
-			glm::vec3 spring_force = glm::vec3(0,0,0);
+			glm::vec3 spring_force = glm::vec3(1,1,1);
 
 			// calculate spring force, based on displacement (q_{i+1}) 
-			if(disp > 0) 
+			if(disp >= 0) 
 			{
 				glm::vec3 force_dir = glm::normalize(other->curr_pos - self->curr_pos);
 				spring_force = force_dir * mass_springs[i].calc_SpringForce();
@@ -572,7 +572,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 				max_z_mass_id = i;
 			}
 		}
-			max_id = max_z_mass_id;
+			max_id = max_y_mass_id;
      }
 	
 
@@ -1001,7 +1001,7 @@ int main(int argc, char* argv[]) {
 
 	 // [4] calculate and apply all external forces to each mass
 		for(int j = 0; j < masses.size(); j++) {
-			calc_NetForces(j);
+			calc_NetForces(masses[j]->m_id);
 		}
 
 	 // [5] calculate v_i for each m_i
