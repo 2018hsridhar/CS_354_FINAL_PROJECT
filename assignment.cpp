@@ -95,7 +95,6 @@ std::vector<glm::uvec3> menger_faces;
 
 std::vector<Mass*> masses;
 std::vector<int> visited_Masses;
-//glm::vec3 init_Force = glm::vec3(1,1,1);
 glm::vec3 init_Force = glm::vec3(0,1,0);
 
 std::vector<glm::vec4> plane_vertices;
@@ -525,6 +524,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 			float disp = glm::length(v_2) - glm::length(v_1);
 			mass_springs[i].setDisplacement(disp);
 			glm::vec3 spring_force = glm::vec3(1,1,1);
+			//std::cout << "disp = " << disp << std::endl;
 
 			// calculate spring force, based on displacement (q_{i+1}) 
 			if(disp >= 0) 
@@ -540,7 +540,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 
 			// apply spring forces ( to A and B)
 			self->applyForce(spring_force);
-			other->applyForce(-1.0f * spring_force);
+			//other->applyForce(1.0f * spring_force);
 
 		}
 		
@@ -988,8 +988,6 @@ int main(int argc, char* argv[]) {
 	 * [5] calculate v_i for each m_i
 	 * [6] reset menger vertices to new, physically simulated, vertices
 	 */
-
-		visited_Masses.clear();
 
 	 // [3] calculate q_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {
