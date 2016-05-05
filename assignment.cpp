@@ -58,10 +58,10 @@ int max_id = 0; // for vertex that initial force is applied to
 enum {
   kVertexBuffer,
   kIndexBuffer,
-  plane_kVertexBuffer,
-  plane_kIndexBuffer,
-  small_sphere_kVertexBuffer,
-  small_sphere_kIndexBuffer,
+  // plane_kVertexBuffer,
+  // plane_kIndexBuffer,
+  // small_sphere_kVertexBuffer,
+  // small_sphere_kIndexBuffer,
   kNumVbos,
 };
 
@@ -831,6 +831,68 @@ void CreatePlane(){
 	///////////////////////////////////////////////
 	///////////////////////////////////////////////
 	///////////////////////////////////////////////
+	//small sphere set up  
+
+	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+	// Generate buffer objects for kPlaneVao 
+	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kSmallVao][0]));
+
+	// Let's create our plane SHADER program.
+	GLuint small_sphere_program_id = 2;
+	CHECK_GL_ERROR(small_sphere_program_id = glCreateProgram());
+
+	// Setup vertex data for kPlane VBOs
+	CHECK_GL_ERROR(
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+								sizeof(float) * small_sphere_vertices.size() * 4,
+								&small_sphere_vertices[0], GL_STATIC_DRAW));
+	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
+	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
+
+	// Setup element array buffer. (kPlane faces data )
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+								buffer_objects[kSmallVao][kIndexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+								sizeof(uint32_t) * small_sphere_faces.size() * 3,
+								&small_sphere_faces[0], GL_STATIC_DRAW));
+
+	// Setup fragment shader.
+	GLuint small_sphere_fragment_shader_id = 2;
+	const char* small_sphere_fragment_source_pointer = small_spheres_fragment_shader; 
+	CHECK_GL_ERROR(small_sphere_fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
+	CHECK_GL_ERROR(
+		glShaderSource(small_sphere_fragment_shader_id, 1, &small_sphere_fragment_source_pointer, nullptr));
+	glCompileShader(small_sphere_fragment_shader_id);
+	CHECK_GL_SHADER_ERROR(small_sphere_fragment_shader_id);
+
+	// ATTACH SHADERS
+	CHECK_GL_ERROR(glAttachShader(small_sphere_program_id, vertex_shader_id));
+	CHECK_GL_ERROR(glAttachShader(small_sphere_program_id, geometry_shader_id));
+	CHECK_GL_ERROR(glAttachShader(small_sphere_program_id, small_sphere_fragment_shader_id));
+
+	// Bind attributes. ( linking step )
+	CHECK_GL_ERROR(glBindAttribLocation(small_sphere_program_id, 0, "vertex_position"));
+	CHECK_GL_ERROR(glBindFragDataLocation(small_sphere_program_id, 0, "plane_fragment_color")); 
+		
+	glLinkProgram(small_sphere_program_id);
+	CHECK_GL_PROGRAM_ERROR(small_sphere_program_id);
+
+	// Get the uniform locations. [ not sure if this also needs to be copied too ]
+	GLint small_sphere_projection_matrix_location = 2;
+	CHECK_GL_ERROR(small_sphere_projection_matrix_location =
+						glGetUniformLocation(small_sphere_program_id, "projection"));
+	GLint small_sphere_view_matrix_location = 2;
+	CHECK_GL_ERROR(small_sphere_view_matrix_location =
+						glGetUniformLocation(small_sphere_program_id, "view"));
+	GLint small_sphere_light_position_location = 2;
+	CHECK_GL_ERROR(small_sphere_light_position_location =
+						glGetUniformLocation(small_sphere_program_id, "light_position"));
+	
+
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
 	// Setup the plane array object.
 	// Switch to the kPlaneVAO.
 	CHECK_GL_ERROR(glBindVertexArray(array_objects[kPlaneVao]));
@@ -843,7 +905,7 @@ void CreatePlane(){
 
 	// Setup vertex data for kPlane VBOs
 	CHECK_GL_ERROR(
-		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kPlaneVao][plane_kVertexBuffer]));
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kPlaneVao][kVertexBuffer]));
 	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
 								sizeof(float) * plane_vertices.size() * 4,
 								&plane_vertices[0], GL_STATIC_DRAW));
@@ -893,63 +955,63 @@ void CreatePlane(){
 
 	// Setup the small spheres array object.
 	// Switch to the kSmallVao.
-	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+	// CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
 	// Generate buffer objects for kPlaneVao 
-	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kSmallVao][0]));
+	// CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kSmallVao][0]));
 
-	// Let's create our plane SHADER program.
-	GLuint small_spheres_program_id = 1;
-	CHECK_GL_ERROR(small_spheres_program_id = glCreateProgram());
+	// // Let's create our plane SHADER program.
+	// GLuint small_spheres_program_id = 1;
+	// CHECK_GL_ERROR(small_spheres_program_id = glCreateProgram());
 
-	// send data to VBO for small spheres 
-	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+	// //send data to VBO for small spheres 	
 
-	CHECK_GL_ERROR(
-		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][small_sphere_kVertexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-				sizeof(float) * small_sphere_vertices.size() * 4,
-				&small_sphere_vertices[0], GL_STATIC_DRAW));
-	std::cout << "Here One, lin [910], before glEnableVertexAttribArray(0) for small_sphere_VAO" << std::endl;
-	CHECK_GL_ERROR(glEnableVertexAttribArray(0)); // -- why does this cause a SEG FAULT in the program later??
+	// CHECK_GL_ERROR(
+	// 	glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
+	// CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+	// 			sizeof(float) * small_sphere_vertices.size() * 4,
+	// 			&small_sphere_vertices[0], GL_STATIC_DRAW));
+	// std::cout << "Here One, lin [910], before glEnableVertexAttribArray(0) for small_sphere_VAO" << std::endl;
+	// CHECK_GL_ERROR(glEnableVertexAttribArray(0)); // -- why does this cause a SEG FAULT in the program later??
 
-	// Setup element array buffer. (kMenger faces data )
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-								buffer_objects[kSmallVao][small_sphere_kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-								sizeof(uint32_t) * small_sphere_faces.size() * 3,
-								&small_sphere_faces[0], GL_STATIC_DRAW));
+	// // Setup element array buffer. (kMenger faces data )
+	// CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+	// 							buffer_objects[kSmallVao][kIndexBuffer]));
+	// CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+	// 							sizeof(uint32_t) * small_sphere_faces.size() * 3,
+	// 							&small_sphere_faces[0], GL_STATIC_DRAW));
 
-	// Setup fragment shader.
-	GLuint small_spheres_fragment_shader_id = 1;
-	const char* small_spheres_fragment_source_pointer = small_spheres_fragment_shader; 
-	CHECK_GL_ERROR(small_spheres_fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
-	CHECK_GL_ERROR(
-		glShaderSource(small_spheres_fragment_shader_id, 1, &small_spheres_fragment_source_pointer, nullptr));
-	glCompileShader(small_spheres_fragment_shader_id);
-	CHECK_GL_SHADER_ERROR(small_spheres_fragment_shader_id);
+	
+	// //Setup fragment shader.
+	// GLuint small_spheres_fragment_shader_id = 1;
+	// const char* small_spheres_fragment_source_pointer = small_spheres_fragment_shader; 
+	// CHECK_GL_ERROR(small_spheres_fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
+	// CHECK_GL_ERROR(
+	// 	glShaderSource(small_spheres_fragment_shader_id, 1, &small_spheres_fragment_source_pointer, nullptr));
+	// glCompileShader(small_spheres_fragment_shader_id);
+	// CHECK_GL_SHADER_ERROR(small_spheres_fragment_shader_id);
 
-	// ATTACH SHADERS
-	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, vertex_shader_id)); // going to change vertex shader!! or fragment!!
-	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, geometry_shader_id));
-	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, small_spheres_fragment_shader_id));
+	// // ATTACH SHADERS
+	// CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, vertex_shader_id)); // going to change vertex shader!! or fragment!!
+	// CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, geometry_shader_id));
+	// CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, small_spheres_fragment_shader_id));
 
-	// Bind attributes. ( linking step )
-	CHECK_GL_ERROR(glBindAttribLocation(small_spheres_program_id, 0, "vertex_position"));
-	CHECK_GL_ERROR(glBindFragDataLocation(small_spheres_program_id, 0, "small_shaders_fragment_color")); 
+	// // Bind attributes. ( linking step )
+	// CHECK_GL_ERROR(glBindAttribLocation(small_spheres_program_id, 0, "vertex_position"));
+	// CHECK_GL_ERROR(glBindFragDataLocation(small_spheres_program_id, 0, "small_shaders_fragment_color")); 
 		
-	glLinkProgram(small_spheres_program_id);
-	CHECK_GL_PROGRAM_ERROR(small_spheres_program_id);
+	// glLinkProgram(small_spheres_program_id);
+	// CHECK_GL_PROGRAM_ERROR(small_spheres_program_id);
 
-	// Get the uniform locations. [ not sure if this also needs to be copied too ]
-	GLint small_spheres_projection_matrix_location = 1;
-	CHECK_GL_ERROR(small_spheres_projection_matrix_location =
-						glGetUniformLocation(small_spheres_program_id, "projection"));
-	GLint small_spheres_view_matrix_location = 1;
-	CHECK_GL_ERROR(small_spheres_view_matrix_location =
-						glGetUniformLocation(small_spheres_program_id, "view"));
-	GLint small_spheres_light_position_location = 1;
-	CHECK_GL_ERROR(small_spheres_light_position_location =
-						glGetUniformLocation(small_spheres_program_id, "light_position"));
+	// // Get the uniform locations. [ not sure if this also needs to be copied too ]
+	// GLint small_spheres_projection_matrix_location = 1;
+	// CHECK_GL_ERROR(small_spheres_projection_matrix_location =
+	// 					glGetUniformLocation(small_spheres_program_id, "projection"));
+	// GLint small_spheres_view_matrix_location = 1;
+	// CHECK_GL_ERROR(small_spheres_view_matrix_location =
+	// 					glGetUniformLocation(small_spheres_program_id, "view"));
+	// GLint small_spheres_light_position_location = 1;
+	// CHECK_GL_ERROR(small_spheres_light_position_location =
+	// 					glGetUniformLocation(small_spheres_program_id, "light_position"));
 	
 		//////////////////////////////////////////////
 		//////////////////////////////////////////////
@@ -970,6 +1032,8 @@ void CreatePlane(){
 		glEnable(GL_MULTISAMPLE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDepthFunc(GL_LESS);
+
+
 
 		//////////////////////////////////////////////
 		//////////////////////////////////////////////
@@ -1018,6 +1082,7 @@ void CreatePlane(){
 			}
 				
 		}
+		
 
 
 		// [4] calculate v_i for each m_i
@@ -1056,18 +1121,22 @@ void CreatePlane(){
 					sizeof(float) * menger_vertices.size() * 4,
 					&menger_vertices[0], GL_STATIC_DRAW));
 
-		// bind to VAO for small spheres
+	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+									sizeof(uint32_t) * menger_faces.size() * 3,
+									&menger_faces[0], GL_STATIC_DRAW));
+
+		//bind to VAO for small spheres
 		CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
 
   		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][small_sphere_kVertexBuffer]));
+   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
 	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
 					sizeof(float) * small_sphere_vertices.size() * 4,
 					&small_sphere_vertices[0], GL_STATIC_DRAW));
 	
 		// Setup element array buffer. (kMenger faces data )
 		CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-									buffer_objects[kSmallVao][small_sphere_kIndexBuffer]));
+									buffer_objects[kSmallVao][kIndexBuffer]));
 		CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
 									sizeof(uint32_t) * small_sphere_faces.size() * 3,
 									&small_sphere_faces[0], GL_STATIC_DRAW));
@@ -1120,15 +1189,15 @@ void CreatePlane(){
     CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
 
     // Use our program.
-    CHECK_GL_ERROR(glUseProgram(small_spheres_program_id));
+    CHECK_GL_ERROR(glUseProgram(small_sphere_program_id));
 
     // Pass uniforms in.
-    CHECK_GL_ERROR(glUniformMatrix4fv(small_spheres_projection_matrix_location, 1, GL_FALSE,
+    CHECK_GL_ERROR(glUniformMatrix4fv(small_sphere_projection_matrix_location, 1, GL_FALSE,
                                       &projection_matrix[0][0]));
-    CHECK_GL_ERROR(glUniformMatrix4fv(small_spheres_view_matrix_location, 1, GL_FALSE,
+    CHECK_GL_ERROR(glUniformMatrix4fv(small_sphere_view_matrix_location, 1, GL_FALSE,
                                       &view_matrix[0][0]));
     CHECK_GL_ERROR(
-        glUniform4fv(small_spheres_light_position_location, 1, &light_position[0]));
+        glUniform4fv(small_sphere_light_position_location, 2, &light_position[0]));
 
     // Draw our triangles. ( THIS IS SEG FAULTING!!!)
     CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, small_sphere_faces.size() * 3,
