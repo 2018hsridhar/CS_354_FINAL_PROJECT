@@ -49,12 +49,6 @@ int window_width = 800, window_height = 600;
 const std::string window_title = "Menger";
 int max_id = 0; // for vertex that initial force is applied to
 
-// Menger info.
-const int kMinLevel = 0;
-const int kMaxLevel = 4;
-const glm::vec3 kMengerMinBounds = glm::vec3(-0.5f);
-const glm::vec3 kMengerMaxBounds = glm::vec3(0.5f);
-
 // VBO and VAO descriptors.
 
 // We have these VBOs available for each VAO.
@@ -71,6 +65,7 @@ enum {
 enum {
   kMengerVao,
   kPlaneVao,
+  kSmallVao,
   kNumVaos
 };
 
@@ -95,6 +90,17 @@ int L = 0; // global variable (helps with easy manipulation)
 float aspect = 0.0f;
 std::vector<glm::vec4> menger_vertices;
 std::vector<glm::uvec3> menger_faces;
+
+///////////////////////////////////////////////////////
+/*! for generating the small sphers to help visualize deformations */
+std::vector<glm::vec4> base_sphere_vertices;
+std::vector<glm::uvec3> base_sphere_faces;
+glm::vec4 base_center = glm::vec4(0,0.1,0,1); // homogenous coordinates ( world matrix system )
+
+std::vector<glm::vec4> small_sphere_vertices;
+std::vector<glm::uvec3> small_sphere_faces;
+
+///////////////////////////////////////////////////////
 
 std::vector<Mass*> masses;
 std::vector<int> visited_Masses;
@@ -153,6 +159,16 @@ const char* fragment_shader =
     "dot_nl = clamp(dot_nl, 0.0, 1.0);"
     "fragment_color = clamp(dot_nl * color, 0.0, 1.0);"
     "}";
+
+const char* small_spheres_fragment_shader =
+    "#version 330 core\n"
+    "in vec4 normal;"
+    "in vec4 light_direction;"
+    "out vec4 small_spheres_fragment_color;"
+    "void main() {"
+    "small_spheres_fragment_color = vec4(0,1,0,1);"
+    "}";
+
 
 // how to pass unteransformed world coordinates from
 // geoemtry shader to plane_fragment shader
@@ -303,140 +319,9 @@ void drawPlane()
 
 }
 
-/* Function drawCube(vertices,faces, minx-z, maxx-z) */
-void drawCube(std::vector<glm::vec4>& vertices,
-		    std::vector<glm::uvec3>& faces,
-		    float minx, float miny, float minz,
-		    float maxx, float maxy, float maxz ) {
-
-    /* ADD VERTICES TO SPONGE LISTS */
-    vertices.push_back(glm::vec4(minx, miny, maxz,1.0f)); // A = 0 
-    vertices.push_back(glm::vec4(maxx, miny, maxz,1.0f)); // B = 1 
-
-    vertices.push_back(glm::vec4(minx, maxy, maxz,1.0f)); // C = 2 
-    vertices.push_back(glm::vec4(maxx, maxy, maxz,1.0f)); // D = 3 
-
-    vertices.push_back(glm::vec4(minx, miny, minz,1.0f)); // E = 4 
-    vertices.push_back(glm::vec4(maxx, miny, minz,1.0f)); // F = 5 
-
-    vertices.push_back(glm::vec4(minx, maxy, minz,1.0f)); // G = 6 
-    vertices.push_back(glm::vec4(maxx, maxy, minz,1.0f)); // H = 7
-    /*********************************/
-
-    /* ADD FACES TO SPONGE LISTS */
-    /* NOTE :: 2 triangle per each face (8 faces ) */
-	int offset = menger_vertices.size() - 8;
-
-    // front facing face
-    faces.push_back(glm::uvec3(offset + 0, offset + 1, offset + 2));  // ABC
-    faces.push_back(glm::uvec3(offset + 1, offset + 3, offset + 2));  // BDC
-    
-	// top facing face
-    faces.push_back(glm::uvec3(offset + 2, offset + 3, offset + 6)); // CDG
-    faces.push_back(glm::uvec3(offset + 6, offset + 3, offset + 7)); //  GDH
-    
-    // bottom facing face  
-    faces.push_back(glm::uvec3(offset + 0, offset + 1, offset + 4));  // ABE
-    faces.push_back(glm::uvec3(offset + 4,offset + 1, offset + 5));  //FBE TESTED SET {BEF, BFE, EFB, }
-
-    // left facing face
-    faces.push_back(glm::uvec3(offset + 0, offset + 6, offset + 2));  // ACG  TESTED SET { ACG, AGC }
-    faces.push_back(glm::uvec3(offset + 0, offset +4, offset + 6));  // AEG TESTED SET { AEG} , 
-
-    // right facing face 
-    faces.push_back(glm::uvec3(offset+ 1, offset + 7, offset + 3)); //  BHD TESTED SET { BEH, BHE }
-    faces.push_back(glm::uvec3(offset + 5, offset + 7,offset + 1 )); //  BHF 
-   
-    // rear facing face 
-    faces.push_back(glm::uvec3(offset + 4, offset + 5, offset + 6)); //  EGF TESTED SET  { EGF,EFG } 
-    faces.push_back(glm::uvec3(offset + 6, offset + 5, offset + 7)); //  GFH TESTED SET  {  }  
-
-    /*********************************/
-
-    }
-
-    // RECURSIVE METHOD TO GENERATE ALL CUBE COORDINATES 
-    // note :: test for method in test_spon_gen.cc
-	// note :: you need to clear vertices and faces list
-    void generateCubes(int level,
-			    std::vector<glm::vec4>& vertices,
-		    std::vector<glm::uvec3>& faces,
-			    float minx, float miny, float minz,
-			    float maxx, float maxy, float maxz ) {
-	    int x, y, z;
-	    if(level == 0){ // base case
-		    drawCube(vertices,faces, 
-			    minx, miny, minz, 
-			    maxx, maxy, maxz);
-	    } else {
-		    // calculate intervals needed for cube 
-		    float x_int = std::fabs(maxx - minx) / 3.0;
-		    float y_int = std::fabs(maxy - miny) / 3.0;
-		    float z_int = std::fabs(maxz - minz) / 3.0;
-
-		    // Iterate over each cube's 27 sub cubes , generating 20 valid coords
-			int pairs_offset = 0;
-		    for(y = 0; y < 3; y++){
-			    for(z = 0; z < 3; z++) {
-				    for(x = 0; x < 3; x++){
-						if(y == 0 || y == 2) {
-							if(x != 1 || z != 1) { // negation of x == 1 && z == 1
-								float new_x_min = minx + (x_int * x);
-								float new_x_max = minx + (x_int * (x+1));
-								float new_y_min = miny + (y_int * y);
-								float new_y_max = miny + (y_int * (y+1));
-								float new_z_min = minz + (z_int * z);
-								float new_z_max = minz + (z_int * (z+1));
-
-								generateCubes(level - 1,
-										vertices, faces,
-									new_x_min, new_y_min, new_z_min,
-									new_x_max, new_y_max, new_z_max);
-									pairs_offset++;	
-							}
-					    } 
-						else if (y == 1) {
-								if(x != 1 && z != 1) {
-									float new_x_min = minx + (x_int * x);
-									float new_x_max = minx + (x_int * (x+1));
-									float new_y_min = miny + (y_int * y);
-									float new_y_max = miny + (y_int * (y+1));
-									float new_z_min = minz + (z_int * z);
-									float new_z_max = minz + (z_int * (z+1));
-								
-								generateCubes(level - 1,
-									vertices, faces,
-									new_x_min, new_y_min, new_z_min,
-									new_x_max, new_y_max, new_z_max);
-						    	}	
-					    }
-				    }
-			    }
-		    }
-	    }
-    }
-
-    void CreateMenger(std::vector<glm::vec4>& vertices,
-		    std::vector<glm::uvec3>& faces) {
-	    //std::cout << "Creating a Menger Sponge ... yeah right!\n";
-
-		// you clear out your vertices only when changing levels (encapsulated here for better design)
-		vertices.clear();
-		faces.clear();
-
-	    /* better idea --- see if the merger sponge coords set can be derived */
-	    /* and then draw that merger sponge */
-	    /* idea of a cube object to work with (helps abstract functionality of code) ? */
-
-		// not sure if drawing the place should actually be here //
-	    generateCubes(L,vertices, faces,
-		    kMengerMinBounds.x, kMengerMinBounds.y, kMengerMinBounds.z,
-		    kMengerMaxBounds.x, kMengerMaxBounds.y, kMengerMaxBounds.z);
-    }
-
-    void CreatePlane(){
-		drawPlane();
-	}
+void CreatePlane(){
+	drawPlane();
+}
 
 	void LoadObj(const std::string& file, std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices) {
 		std::ifstream in(file);
@@ -452,7 +337,8 @@ void drawCube(std::vector<glm::vec4>& vertices,
 
           ////////////////////////////
         // Masses and vertices have a one-to-one mapping
-          masses.push_back(new Mass(i,glm::vec3(menger_vertices[i])));
+			if(file.compare("obj/sphere.obj") == 0)
+				masses.push_back(new Mass(i,glm::vec3(vertices[i])));
           ////////////////////////////
             i++;
 				break;
@@ -809,13 +695,16 @@ void drawCube(std::vector<glm::vec4>& vertices,
 
 		// spring system geometries, from scene graph object files
 	std::string file_name = "obj/sphere.obj";
+	std::string file_name_base = "obj/sphere_tiny.obj";
 	LoadObj(file_name, menger_vertices, menger_faces);
+	LoadObj(file_name_base, base_sphere_vertices,base_sphere_faces);
+
 	Load_SpringSystem();
 	setupSpring();
 	for(int i = 0; i < masses.size(); i++)
 		mi_hit_floor.push_back(false);
 
-		// Plane
+	// Plane
 	CreatePlane();
 	std::cout << "Loaded plane and vertices geometries" << std::endl; 
 
@@ -909,15 +798,14 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	// Setup the plane array object.
 	// Switch to the kPlaneVAO.
 	CHECK_GL_ERROR(glBindVertexArray(array_objects[kPlaneVao]));
-	// Generate buffer objects for kMengerVao
+	// Generate buffer objects for kPlaneVao 
 	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kPlaneVao][0]));
 
 	// Let's create our plane SHADER program.
 	GLuint plane_program_id = 1;
 	CHECK_GL_ERROR(plane_program_id = glCreateProgram());
 
-	// Setup vertex data for kMenger VBOs
-	// why is this causing an issue?  (keyboard controls not working at this point )
+	// Setup vertex data for kPlane VBOs
 	CHECK_GL_ERROR(
 		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kPlaneVao][plane_kVertexBuffer]));
 	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
@@ -926,7 +814,7 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
 	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
 
-	// Setup element array buffer. (kMenger faces data )
+	// Setup element array buffer. (kPlane faces data )
 	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
 								buffer_objects[kPlaneVao][kIndexBuffer]));
 	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
@@ -942,18 +830,14 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	glCompileShader(plane_fragment_shader_id);
 	CHECK_GL_SHADER_ERROR(plane_fragment_shader_id);
 
-		// ATTACH SHADERS
+	// ATTACH SHADERS
 	CHECK_GL_ERROR(glAttachShader(plane_program_id, vertex_shader_id));
 	CHECK_GL_ERROR(glAttachShader(plane_program_id, geometry_shader_id));
-	//CHECK_GL_ERROR(glAttachShader(plane_program_id, fragment_shader_id));
 	CHECK_GL_ERROR(glAttachShader(plane_program_id, plane_fragment_shader_id));
 
 	// Bind attributes. ( linking step )
 	CHECK_GL_ERROR(glBindAttribLocation(plane_program_id, 0, "vertex_position"));
-	CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "plane_fragment_color")); // need 0 (numerical pos for gpu) (things don't match!)
-	//CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "fragment_color")); // need 0 (numerical pos for gpu) (things don't match!)
-
-		// there is an issue with plane shader program itself at the moment
+	CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "plane_fragment_color")); 
 		
 	glLinkProgram(plane_program_id);
 	CHECK_GL_PROGRAM_ERROR(plane_program_id);
@@ -968,6 +852,67 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	GLint plane_light_position_location = 1;
 	CHECK_GL_ERROR(plane_light_position_location =
 						glGetUniformLocation(plane_program_id, "light_position"));
+
+	///////////////////// SET UP SMALL SPHERES SHADER PROGRAMS ////////////////////
+
+	// Setup the small spheres array object.
+	// Switch to the kSmallVao.
+	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+	// Generate buffer objects for kPlaneVao 
+	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kSmallVao][0]));
+
+	// Let's create our plane SHADER program.
+	GLuint small_spheres_program_id = 1;
+	CHECK_GL_ERROR(small_spheres_program_id = glCreateProgram());
+
+	// Setup fragment shader.
+	GLuint small_spheres_fragment_shader_id = 1;
+	const char* small_spheres_fragment_source_pointer = small_spheres_fragment_shader; 
+	CHECK_GL_ERROR(small_spheres_fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
+	CHECK_GL_ERROR(
+		glShaderSource(small_spheres_fragment_shader_id, 1, &small_spheres_fragment_source_pointer, nullptr));
+	glCompileShader(small_spheres_fragment_shader_id);
+	CHECK_GL_SHADER_ERROR(small_spheres_fragment_shader_id);
+
+	// send data to VBO for small spheres ( to be honest, there is nothing )!
+	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+
+	CHECK_GL_ERROR(
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+				sizeof(float) * small_sphere_vertices.size() * 4,
+				&small_sphere_vertices[0], GL_STATIC_DRAW));
+
+	// Setup element array buffer. (kMenger faces data )
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+								buffer_objects[kSmallVao][kIndexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+								sizeof(uint32_t) * small_sphere_faces.size() * 3,
+								&small_sphere_faces[0], GL_STATIC_DRAW));
+
+// ATTACH SHADERS
+	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, vertex_shader_id)); // going to change vertex shader!! or fragment!!
+	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, geometry_shader_id));
+	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, small_spheres_fragment_shader_id));
+
+	// Bind attributes. ( linking step )
+	CHECK_GL_ERROR(glBindAttribLocation(small_spheres_program_id, 0, "vertex_position"));
+	CHECK_GL_ERROR(glBindFragDataLocation(small_spheres_program_id, 0, "small_shaders_fragment_color")); 
+		
+	glLinkProgram(small_spheres_program_id);
+	CHECK_GL_PROGRAM_ERROR(small_spheres_program_id);
+
+	// Get the uniform locations. [ not sure if this also needs to be copied too ]
+	GLint small_spheres_projection_matrix_location = 1;
+	CHECK_GL_ERROR(small_spheres_projection_matrix_location =
+						glGetUniformLocation(small_spheres_program_id, "projection"));
+	GLint small_spheres_view_matrix_location = 1;
+	CHECK_GL_ERROR(small_spheres_view_matrix_location =
+						glGetUniformLocation(small_spheres_program_id, "view"));
+	GLint small_spheres_light_position_location = 1;
+	CHECK_GL_ERROR(small_spheres_light_position_location =
+						glGetUniformLocation(small_spheres_program_id, "light_position"));
+	
 		//////////////////////////////////////////////
 		//////////////////////////////////////////////
 		//////////////////////////////////////////////
@@ -1048,6 +993,44 @@ void drawCube(std::vector<glm::vec4>& vertices,
 			menger_vertices.push_back(glm::vec4(masses[j]->curr_pos,1));
 		} 
 
+		// std::vector<glm::vec4> small_sphere_vertices;
+		// std::vector<glm::uvec3> small_sphere_faces;
+		// base_sphere_vertices = the small sphere that helps start the process
+		// base_sphere_faces);
+		// base_center ( vector of the center ) = the center of said small sphere
+		// kSmall vao
+
+		// given list of vertices, calculate distances and then set offset of small sphere
+		small_sphere_vertices.clear();
+		small_sphere_faces.clear();
+
+		for(int j = 0; j < menger_vertices.size(); j++)
+		{
+			// calculate vector, from base_center, to menger_vertex 
+			glm::vec4 offset_vector = menger_vertices[j] - base_center;
+			for(int i = 0; i < base_sphere_vertices.size();i++) 
+			{
+				glm::vec4 shifted_vertex = 	base_sphere_vertices[i] + offset_vector;
+				small_sphere_vertices.push_back(shifted_vertex);
+			}
+		}
+
+		// to get the faces correctly
+		for(int i = 0; i < menger_faces.size();i++) 
+		{
+			int face_offset = 120 * i;
+			for(int j = 0; j < base_sphere_faces.size();j++) 
+			{
+				glm::vec3 init_faceValues = base_sphere_faces[j];
+				glm::vec3 new_faceValues = init_faceValues + glm::vec3(face_offset,face_offset,face_offset);
+				small_sphere_faces.push_back(new_faceValues);
+			}
+		}
+
+		// math is right, but image is not showing up!!!
+		//std::cout << "size of small sphere vertices = " << small_sphere_vertices.size() << std::endl;
+		//std::cout << "size of small sphere faces = " << small_sphere_faces.size() << std::endl;
+
 		/*! INSERT OPENGL CODE HERE TO REPASS VERTICES */
 		// each bind buffer call is separete 
   		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
@@ -1057,6 +1040,23 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
 					sizeof(float) * menger_vertices.size() * 4,
 					&menger_vertices[0], GL_STATIC_DRAW));
+
+		// bind to VAO for small spheres
+		CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+
+  		CHECK_GL_ERROR(
+   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
+	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+					sizeof(float) * small_sphere_vertices.size() * 4,
+					&small_sphere_vertices[0], GL_STATIC_DRAW));
+	
+		// Setup element array buffer. (kMenger faces data )
+		CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+									buffer_objects[kSmallVao][kIndexBuffer]));
+		CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+									sizeof(uint32_t) * small_sphere_faces.size() * 3,
+									&small_sphere_faces[0], GL_STATIC_DRAW));
+
 	
 	///////////////////////////////////////////////////
 	///////////////////////////////////////////////////
@@ -1076,11 +1076,9 @@ void drawCube(std::vector<glm::vec4>& vertices,
         glUniform4fv(light_position_location, 1, &light_position[0]));
 
     // Draw our triangles.
-    //CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, menger_faces.size() * 3,
     CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, menger_faces.size() * 3,
                                   GL_UNSIGNED_INT, 0));
 
-    /////////////////////////////////////////////////// 
     /////////////////////////////////////////////////// 
     /////////////////////////////////////////////////// 
     // Switch to our plane Menger VAO.
@@ -1089,23 +1087,40 @@ void drawCube(std::vector<glm::vec4>& vertices,
     // Use our program.
     CHECK_GL_ERROR(glUseProgram(plane_program_id));
 
-    // Pass uniforms in for the plane.  (maybe should be plane_(projection/view_matrix)_location and plane_light_position
+    // Pass uniforms in for the plane.  
     CHECK_GL_ERROR(glUniformMatrix4fv(plane_projection_matrix_location, 1, GL_FALSE,
                                       &projection_matrix[0][0]));
     CHECK_GL_ERROR(glUniformMatrix4fv(plane_view_matrix_location, 1, GL_FALSE,
                                       &view_matrix[0][0]));
     CHECK_GL_ERROR(
         glUniform4fv(plane_light_position_location, 1, &light_position[0]));
-    //std::cout << light_position << std::endl;
 
     // Draw plane's triangles.
     CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, plane_faces.size() * 3,
                                   GL_UNSIGNED_INT, 0));
 
-	// Go back to the old VAO ( menger vertices and faces )
-	// not needed to switch back 
-  	//CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
+    /////////////////////////////////////////////////// 
+    /////////////////////////////////////////////////// 
+	// Switch to our small spheres VAO.
+    CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
 
+    // Use our program.
+    CHECK_GL_ERROR(glUseProgram(small_spheres_program_id));
+
+    // Pass uniforms in.
+    CHECK_GL_ERROR(glUniformMatrix4fv(small_spheres_projection_matrix_location, 1, GL_FALSE,
+                                      &projection_matrix[0][0]));
+    CHECK_GL_ERROR(glUniformMatrix4fv(small_spheres_view_matrix_location, 1, GL_FALSE,
+                                      &view_matrix[0][0]));
+    CHECK_GL_ERROR(
+        glUniform4fv(small_spheres_light_position_location, 1, &light_position[0]));
+
+    // Draw our triangles.
+    CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, small_sphere_faces.size() * 3,
+                                  GL_UNSIGNED_INT, 0));
+	
+	//////////////////////////////////////////////////// 
+	// update the current time , based on time step
 	curTime += timeStep;
  
     // Poll and swap.
