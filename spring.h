@@ -42,7 +42,7 @@ class Spring
 	int s_id;
 	Mass *A;
 	Mass *B;
-	float kCoeff = 3.0; // find some number online, or just test our yourself
+	float kCoeff = 50.0; // find some number online, or just test our yourself
 	float kDamp = kCoeff / 1000.0; // find some number online, or just test our yourself
 	float equil_len = 0;
 	float disp = 0; // (-) displacement = compressed, (+) displacement = stretched

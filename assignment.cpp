@@ -20,6 +20,11 @@
 
 float curTime = 0.0;
 float timeStep = 0.0066f;  // analogy to 60 fps
+float floor_coeff = 500.0;
+float floor_cutoff = -1.9;
+glm::vec3 gravity = glm::vec3(0,-0.98,0);
+//glm::vec3 gravity = glm::vec3(0,-9.8,0);
+bool max_id_floorHit = false;
 
 int max_x_mass_id = 0; //surface vertic
 int max_y_mass_id = 0; //
@@ -28,7 +33,6 @@ std::string file_name = "obj/sphere.obj";
 std::string file_name_base = "obj/sphere_tiny.obj";
 
 bool force_applied = false;
-std::vector<bool> mi_hit_floor;
 
 std::vector<Spring> mass_springs;
 
@@ -401,7 +405,11 @@ void CreatePlane(){
 	{
 			if(curTime <= 0.010 && force_applied==false)
 		{
-			masses[max_id]->applyForce(init_Force);
+			if(!max_id_floorHit) {
+				masses[max_id]->applyForce(init_Force);
+			} else {
+				std::cout << "max id floor hit is now true" << std::endl;
+			}
 			force_applied = true;
 		}
 				
@@ -414,9 +422,6 @@ void CreatePlane(){
 				// get spring masses and vectors for masses
 				Mass *self = mass_springs[my_springs[i]].getMassA();
 				Mass *other = mass_springs[my_springs[i]].getMassB();
-		// std::cout<<"mass_id "<<mass_id<<std::endl;
-		// std::cout<<"self_id "<<self->m_id<<std::endl;
-		// std::cout<<"other_id "<<other->m_id<<std::endl;
 
 				glm::vec3 v_1 = self->old_pos - other->old_pos;
 				glm::vec3 v_2 = self->curr_pos - other->curr_pos;
@@ -445,7 +450,7 @@ void CreatePlane(){
 
 				// apply spring forces ( to A and B)
 				self->applyForce(spring_force);
-				self->applyForce(dampening);
+				//self->applyForce(dampening);
 				other->applyForce(-1.0f * spring_force);
 
 			}
@@ -730,10 +735,6 @@ void CreatePlane(){
 	setupSpring();
 	load_smallSpheres();
 	
-	// set floor hit status for each mass, m_{i}, to FALSE
-	for(int i = 0; i < masses.size(); i++)
-		mi_hit_floor.push_back(false);
-
 	// Plane
 	CreatePlane();
 	std::cout << "Loaded plane and vertices geometries" << std::endl; 
@@ -1044,7 +1045,7 @@ void CreatePlane(){
 		///////////////////////////////////////////////////
 		/* SIMULATION CODE 
 		* [1] set all NET forces to 0
-		* 	[1.1] set positive force to largest surface element
+		* 	[1.1] set positive force to largest surface element = glm::length();
 		* [2] calculate q_i for each m_i
 		* [3] calculate and apply all external forces to each mass
 		* [4] calculate v_i for each m_i
@@ -1065,25 +1066,21 @@ void CreatePlane(){
 			calc_NetForces(masses[j]->m_id);
 		}
 
+		if(masses[max_id]->curr_pos.y < floor_cutoff)
+			max_id_floorHit = true;
 		for(int j = 0; j < masses.size(); j++) {
-			if(mi_hit_floor[j] == false)
+			masses[j]->applyForce(gravity);
+			if(masses[j]->curr_pos.y < floor_cutoff)
 			{
-				masses[j]->applyForce(glm::vec3(0,-0.098,0));
-				if(masses[j]->curr_pos.y <= -1.9)
-				{
-					mi_hit_floor[j] = true;
-					masses[j]->vel = glm::vec3(0,0,0);
-					break;
-				}
+				glm::vec3 mass_floor_dist = masses[j]->curr_pos - glm::vec3(0,floor_cutoff,0) ;
+				float floor_dist = glm::length(mass_floor_dist);
+				masses[j]->applyForce(floor_coeff * glm::vec3(0,floor_dist,0));
 			}
-				
 		}
-		
-
 
 		// [4] calculate v_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {
-			masses[j]->updateVel(timeStep);
+			masses[j]->updateVel(timeStep * 0.9f);
 			//std::cout << "Mass [ " << j << "] has velocity = " << masses[j]->vel << std::endl;
 		}
 
