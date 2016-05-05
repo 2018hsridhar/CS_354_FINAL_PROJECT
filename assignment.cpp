@@ -24,6 +24,8 @@ float timeStep = 0.0066f;  // analogy to 60 fps
 int max_x_mass_id = 0; //surface vertic
 int max_y_mass_id = 0; //
 int max_z_mass_id = 0; //
+std::string file_name = "obj/sphere.obj";
+std::string file_name_base = "obj/sphere_tiny.obj";
 
 bool force_applied = false;
 std::vector<bool> mi_hit_floor;
@@ -58,6 +60,8 @@ enum {
   kIndexBuffer,
   plane_kVertexBuffer,
   plane_kIndexBuffer,
+  small_sphere_kVertexBuffer,
+  small_sphere_kIndexBuffer,
   kNumVbos,
 };
 
@@ -336,8 +340,9 @@ void CreatePlane(){
 				vertices.push_back(vertex);
 
           ////////////////////////////
-        // Masses and vertices have a one-to-one mapping
-			if(file.compare("obj/sphere.obj") == 0)
+        	// Masses and vertices have a one-to-one mapping
+			// if we are working with small spheres, do not push their masses
+			if(file.compare(file_name) == 0)
 				masses.push_back(new Mass(i,glm::vec3(vertices[i])));
           ////////////////////////////
             i++;
@@ -477,6 +482,37 @@ void CreatePlane(){
 				max_id = max_y_mass_id;
 		}
 		
+	void load_smallSpheres()
+	{
+			for(int i = 0; i < menger_vertices.size(); i++)
+			{
+				// calculate vector, from base_center, to menger_vertex 
+				glm::vec4 offset_vector = menger_vertices[i] - base_center;
+				for(int j = 0; j < base_sphere_vertices.size();j++) 
+				{
+					glm::vec4 shifted_vertex = 	base_sphere_vertices[j] + offset_vector;
+					small_sphere_vertices.push_back(shifted_vertex);
+				}
+			}
+
+			// to get the faces correctly [ is this incorrect ]???
+			//for(int i = 0; i < menger_faces.size();i++) 
+			for(int i = 0; i < menger_vertices.size();i++) 
+			{
+				// becuase our faces are of form (v_i,v_j,v_k) 
+				// sphere 1 :: (v_i,v_j,v_k)
+				// sphere 2 :: (v_i + 62,v_j + 62,v_k + 62)
+				int face_offset = 62 * i; 
+				for(int j = 0; j < base_sphere_faces.size();j++)  // base_sphere_faces has 120 faces 
+				{
+						glm::vec3 init_faceValues = base_sphere_faces[j];
+					glm::vec3 new_faceValues = init_faceValues + glm::vec3(face_offset,face_offset,face_offset);
+					small_sphere_faces.push_back(new_faceValues);
+				//	std::cout << to_string(new_faceValues) << std::endl;
+				}
+			}
+			//std::cout << small_sphere_faces.size() << std::endl;
+	}
 
 	void setupSpring()
 	{
@@ -502,7 +538,7 @@ void CreatePlane(){
 			//     for(int y = 0; y<masses[x]->springs.size(); ++y)
 			//     {
 			//      std::cout<<"A    "<<(mass_springs[x*6+y].getMassA())->m_id<<std::endl;           
-			//        std::cout<<"B  "<<(mass_springs[x*6+y].getMassB())->m_id<<std::endl;
+			//        std::cout<<"B  "<<(mass_springs[x*6+y].getMassB())->m_id<<std::endl; 
 			//     }
 			//     std::cout<<"\n"<<std::endl;
 			// }
@@ -594,9 +630,6 @@ void CreatePlane(){
 			fps_mode = !fps_mode;
 	}
 
-	// I'm not sure what the significance of screen coordinates are here
-		// i.e. why can't this just be in normal camera coordinates?
-	// what is orbital and fps mode?
 	void MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y) {
 	last_x = current_x;
 	last_y = current_y;
@@ -616,7 +649,6 @@ void CreatePlane(){
 			// note :: your eye stays in the same spot
 			// but your look and up vectors ROTATE
 			// note :: orbital is ROTATE AROUND OBJECT, not REVOLVE THE EYE
-			// note :: do not use radians!
 			glm::vec3 up_rotation = glm::rotate(up, rotation_speed, rotation_axis);	
 			glm::vec3 look_rotation = glm::rotate(look, rotation_speed, rotation_axis);	
 			glm::vec3 eye_rotation = glm::rotate(eye, rotation_speed, rotation_axis);	
@@ -633,8 +665,6 @@ void CreatePlane(){
 			up = up_rotation;
 		}
 
-		// but how to do this per each frame
-		// in fact how do I know that zoom_speed works by frame?
 	} else if (drag_state && current_button == GLFW_MOUSE_BUTTON_RIGHT) {
 			if(delta_y > 0) {
 
@@ -664,7 +694,7 @@ void CreatePlane(){
 
 	int main(int argc, char* argv[]) {
 
-		// SETTING UP OpenGL Context
+	// SETTING UP OpenGL Context
 	if (!glfwInit()) exit(EXIT_FAILURE);
 
 	glfwSetErrorCallback(ErrorCallback);
@@ -693,14 +723,18 @@ void CreatePlane(){
 
 
 
-		// spring system geometries, from scene graph object files
-	std::string file_name = "obj/sphere.obj";
-	std::string file_name_base = "obj/sphere_tiny.obj";
+		// load up vertices of mesh, and of the small spheres
 	LoadObj(file_name, menger_vertices, menger_faces);
 	LoadObj(file_name_base, base_sphere_vertices,base_sphere_faces);
 
+	// Create spring systems, and small spheres
 	Load_SpringSystem();
 	setupSpring();
+	load_smallSpheres();
+		std::cout << "size of small sphere vertices = " << small_sphere_vertices.size() << std::endl;
+		std::cout << "size of small sphere faces = " << small_sphere_faces.size() << std::endl;
+	
+	// set floor hit status for each mass, m_{i}, to FALSE
 	for(int i = 0; i < masses.size(); i++)
 		mi_hit_floor.push_back(false);
 
@@ -711,13 +745,15 @@ void CreatePlane(){
 	// Setup our VAO array
 	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, array_objects));
 
-	///////////////////////////////////////////////
-	///////////////////////////////////////////////
-	///////////////////////////////////////////////
+	/*****************************************
+	 *****************************************
+	 *****************************************
+	 *****************************************
+	 *****************************************
+	 */
 
 	// Setup the menger array object.
 	// Switch to the kMenger VAO.
-	// always have to switch and bind right buffer
 	CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
 
 	// Generate buffer objects for kMengerVao
@@ -865,6 +901,24 @@ void CreatePlane(){
 	GLuint small_spheres_program_id = 1;
 	CHECK_GL_ERROR(small_spheres_program_id = glCreateProgram());
 
+	// send data to VBO for small spheres 
+	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
+
+	CHECK_GL_ERROR(
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][small_sphere_kVertexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+				sizeof(float) * small_sphere_vertices.size() * 4,
+				&small_sphere_vertices[0], GL_STATIC_DRAW));
+	std::cout << "Here One, lin [910], before glEnableVertexAttribArray(0) for small_sphere_VAO" << std::endl;
+	CHECK_GL_ERROR(glEnableVertexAttribArray(0)); // -- why does this cause a SEG FAULT in the program later??
+
+	// Setup element array buffer. (kMenger faces data )
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+								buffer_objects[kSmallVao][small_sphere_kIndexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+								sizeof(uint32_t) * small_sphere_faces.size() * 3,
+								&small_sphere_faces[0], GL_STATIC_DRAW));
+
 	// Setup fragment shader.
 	GLuint small_spheres_fragment_shader_id = 1;
 	const char* small_spheres_fragment_source_pointer = small_spheres_fragment_shader; 
@@ -874,23 +928,7 @@ void CreatePlane(){
 	glCompileShader(small_spheres_fragment_shader_id);
 	CHECK_GL_SHADER_ERROR(small_spheres_fragment_shader_id);
 
-	// send data to VBO for small spheres ( to be honest, there is nothing )!
-	CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
-
-	CHECK_GL_ERROR(
-		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-				sizeof(float) * small_sphere_vertices.size() * 4,
-				&small_sphere_vertices[0], GL_STATIC_DRAW));
-
-	// Setup element array buffer. (kMenger faces data )
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-								buffer_objects[kSmallVao][kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-								sizeof(uint32_t) * small_sphere_faces.size() * 3,
-								&small_sphere_faces[0], GL_STATIC_DRAW));
-
-// ATTACH SHADERS
+	// ATTACH SHADERS
 	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, vertex_shader_id)); // going to change vertex shader!! or fragment!!
 	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, geometry_shader_id));
 	CHECK_GL_ERROR(glAttachShader(small_spheres_program_id, small_spheres_fragment_shader_id));
@@ -946,14 +984,15 @@ void CreatePlane(){
 		///////////////////////////////////////////////////
 		/* SIMULATION CODE 
 		* [1] set all NET forces to 0
-		* [2] set positive force to largest surface element
-		* [3] calculate q_i for each m_i
-		* [4] calculate and apply all external forces to each mass
-		* [5] calculate v_i for each m_i
-		* [6] reset menger vertices to new, physically simulated, vertices
+		* 	[1.1] set positive force to largest surface element
+		* [2] calculate q_i for each m_i
+		* [3] calculate and apply all external forces to each mass
+		* [4] calculate v_i for each m_i
+		* [5] reset menger vertices to new, physically simulated, vertices
 		*/
 
-		// [3] calculate q_i for each m_i
+		// [1] set all NET forces to 0
+		// [2] calculate q_i for each m_i
 			for(int j = 0; j < masses.size(); j++) {
 				masses[j]->zero_out_forces();
 				//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
@@ -961,7 +1000,7 @@ void CreatePlane(){
 				//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
 			}
 
-		// [4] calculate and apply all external forces to each mass
+		// [3] calculate and apply ALL external forces to each mass
 		for(int j = 0; j < masses.size(); j++) {
 			calc_NetForces(masses[j]->m_id);
 		}
@@ -981,13 +1020,13 @@ void CreatePlane(){
 		}
 
 
-	 // [5] calculate v_i for each m_i
+		// [4] calculate v_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {
 			masses[j]->updateVel(timeStep);
 			//std::cout << "Mass [ " << j << "] has velocity = " << masses[j]->vel << std::endl;
 		}
 
-	// [6] reset menger vertices to new, physically simulated, vertices
+	// [5] reset menger vertices to new, physically simulated, vertices
 		menger_vertices.clear();
 		for(int j = 0; j < masses.size(); j++) {
 			menger_vertices.push_back(glm::vec4(masses[j]->curr_pos,1));
@@ -1003,33 +1042,9 @@ void CreatePlane(){
 		// given list of vertices, calculate distances and then set offset of small sphere
 		small_sphere_vertices.clear();
 		small_sphere_faces.clear();
-
-		for(int j = 0; j < menger_vertices.size(); j++)
-		{
-			// calculate vector, from base_center, to menger_vertex 
-			glm::vec4 offset_vector = menger_vertices[j] - base_center;
-			for(int i = 0; i < base_sphere_vertices.size();i++) 
-			{
-				glm::vec4 shifted_vertex = 	base_sphere_vertices[i] + offset_vector;
-				small_sphere_vertices.push_back(shifted_vertex);
-			}
-		}
-
-		// to get the faces correctly
-		for(int i = 0; i < menger_faces.size();i++) 
-		{
-			int face_offset = 120 * i;
-			for(int j = 0; j < base_sphere_faces.size();j++) 
-			{
-				glm::vec3 init_faceValues = base_sphere_faces[j];
-				glm::vec3 new_faceValues = init_faceValues + glm::vec3(face_offset,face_offset,face_offset);
-				small_sphere_faces.push_back(new_faceValues);
-			}
-		}
+		load_smallSpheres();
 
 		// math is right, but image is not showing up!!!
-		//std::cout << "size of small sphere vertices = " << small_sphere_vertices.size() << std::endl;
-		//std::cout << "size of small sphere faces = " << small_sphere_faces.size() << std::endl;
 
 		/*! INSERT OPENGL CODE HERE TO REPASS VERTICES */
 		// each bind buffer call is separete 
@@ -1045,14 +1060,14 @@ void CreatePlane(){
 		CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
 
   		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][kVertexBuffer]));
+   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kSmallVao][small_sphere_kVertexBuffer]));
 	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
 					sizeof(float) * small_sphere_vertices.size() * 4,
 					&small_sphere_vertices[0], GL_STATIC_DRAW));
 	
 		// Setup element array buffer. (kMenger faces data )
 		CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-									buffer_objects[kSmallVao][kIndexBuffer]));
+									buffer_objects[kSmallVao][small_sphere_kIndexBuffer]));
 		CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
 									sizeof(uint32_t) * small_sphere_faces.size() * 3,
 									&small_sphere_faces[0], GL_STATIC_DRAW));
@@ -1115,7 +1130,7 @@ void CreatePlane(){
     CHECK_GL_ERROR(
         glUniform4fv(small_spheres_light_position_location, 1, &light_position[0]));
 
-    // Draw our triangles.
+    // Draw our triangles. ( THIS IS SEG FAULTING!!!)
     CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, small_sphere_faces.size() * 3,
                                   GL_UNSIGNED_INT, 0));
 	
