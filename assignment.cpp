@@ -26,7 +26,7 @@ int max_y_mass_id = 0; //
 int max_z_mass_id = 0; //
 
 bool force_applied = false;
-bool hit_floor = false;
+std::vector<bool> mi_hit_floor;
 
 std::vector<Spring> mass_springs;
 
@@ -508,532 +508,533 @@ void drawCube(std::vector<glm::vec4>& vertices,
 	/* PROBABLY BUGGY */
 	void calc_NetForces(int mass_id)
 	{
-		 if(curTime <= 0.010 && force_applied==false)
-     {
-        masses[max_id]->applyForce(init_Force);
-        force_applied = true;
-     }
-		 	
-
-		//calculate spring forces, add them
-		std::vector<int> my_springs = masses[mass_id]->springs;
-		for(int i = 0; i < my_springs.size(); i++) 
+			if(curTime <= 0.010 && force_applied==false)
 		{
-  
-			// get spring masses and vectors for masses
-			Mass *self = mass_springs[my_springs[i]].getMassA();
-			Mass *other = mass_springs[my_springs[i]].getMassB();
-      // std::cout<<"mass_id "<<mass_id<<std::endl;
-      // std::cout<<"self_id "<<self->m_id<<std::endl;
-      // std::cout<<"other_id "<<other->m_id<<std::endl;
+			masses[max_id]->applyForce(init_Force);
+			force_applied = true;
+		}
+				
 
-			glm::vec3 v_1 = self->old_pos - other->old_pos;
-			glm::vec3 v_2 = self->curr_pos - other->curr_pos;
-
-			// calculate how far spring has been displaced 
-			float disp = glm::length(v_2) - glm::length(v_1);
-			mass_springs[i].setDisplacement(disp);
-			glm::vec3 spring_force = glm::vec3(1,1,1);
-			// std::cout << "disp = " << disp << std::endl;
-
-			// calculate spring force, based on displacement (q_{i+1}) 
-			if(disp >= 0) 
+			//calculate spring forces, add them
+			std::vector<int> my_springs = masses[mass_id]->springs;
+			for(int i = 0; i < my_springs.size(); i++) 
 			{
-				glm::vec3 force_dir = glm::normalize(other->curr_pos - self->curr_pos);
-				spring_force = force_dir * mass_springs[i].calc_SpringForce();
-			}
-			else 
-			{
-				glm::vec3 force_dir = glm::normalize(self->curr_pos - other->curr_pos);
-				spring_force = force_dir * mass_springs[i].calc_SpringForce();
+	
+				// get spring masses and vectors for masses
+				Mass *self = mass_springs[my_springs[i]].getMassA();
+				Mass *other = mass_springs[my_springs[i]].getMassB();
+		// std::cout<<"mass_id "<<mass_id<<std::endl;
+		// std::cout<<"self_id "<<self->m_id<<std::endl;
+		// std::cout<<"other_id "<<other->m_id<<std::endl;
+
+				glm::vec3 v_1 = self->old_pos - other->old_pos;
+				glm::vec3 v_2 = self->curr_pos - other->curr_pos;
+
+				// calculate how far spring has been displaced 
+				float disp = glm::length(v_2) - glm::length(v_1);
+				mass_springs[i].setDisplacement(disp);
+				glm::vec3 spring_force = glm::vec3(1,1,1);
+				// std::cout << "disp = " << disp << std::endl;
+
+				// calculate spring force, based on displacement (q_{i+1}) 
+				if(disp >= 0) 
+				{
+					glm::vec3 force_dir = glm::normalize(other->curr_pos - self->curr_pos);
+					spring_force = force_dir * mass_springs[i].calc_SpringForce();
+				}
+				else 
+				{
+					glm::vec3 force_dir = glm::normalize(self->curr_pos - other->curr_pos);
+					spring_force = force_dir * mass_springs[i].calc_SpringForce();
+				}
+
+				glm::vec3 dampening = mass_springs[i].calc_Dampening(masses[mass_id]->vel);
+				//std::cout << "spring force = " << to_string(spring_force) << std::endl;
+				//std::cout << "damepning force = " << to_string(dampening) << std::endl;
+
+				// apply spring forces ( to A and B)
+				self->applyForce(spring_force);
+				self->applyForce(dampening);
+				other->applyForce(-1.0f * spring_force);
+
 			}
 
-			glm::vec3 dampening = mass_springs[i].calc_Dampening(masses[mass_id]->vel);
-			//std::cout << "spring force = " << to_string(spring_force) << std::endl;
-			//std::cout << "damepning force = " << to_string(dampening) << std::endl;
-
-			// apply spring forces ( to A and B)
-			self->applyForce(spring_force);
-			self->applyForce(dampening);
-			other->applyForce(-1.0f * spring_force);
+			
 
 		}
 
+		void Load_SpringSystem()
+		{
+
+			// vertex list has a direct relationship to the map list ( one-to-one)
+				for(int i = 0; i < masses.size(); i++) {
+					masses[i]->neighbors = getNeighbors(i);
+				}
+		
+			// at frame ( time t = 0), apply one force in (x,y,z) direction to 
+			// surface element mass whose (x,y,z) postion is largest positively 
+			float max_x =  std::numeric_limits<float>::min(); //surface vertic
+			float max_y =  std::numeric_limits<float>::min(); //
+			float max_z =  std::numeric_limits<float>::min(); //
+
+			for(int i = 0; i < masses.size(); i++) {
+				if(masses[i]->curr_pos.x > max_x){ 
+					max_x_mass_id = i;
+				}
+				if(masses[i]->curr_pos.y > max_y){ 
+					max_y_mass_id = i;
+				}
+				if(masses[i]->curr_pos.z > max_z){ 
+					max_z_mass_id = i;
+				}
+			}
+				max_id = max_y_mass_id;
+		}
 		
 
-	}
-
-	void Load_SpringSystem()
+	void setupSpring()
 	{
+			int index =0;
+			for(int x =0; x<masses.size(); x++)
+			{
+				std::vector<int> spring;
+				for(int y = 0; y<masses[x]->neighbors.size(); ++y)
+				{  
+					int num = masses[x]->neighbors[y];
+					Spring s(index, masses[x], masses[num]);
+					spring.push_back(index);
+					mass_springs.push_back(s);
+					index++;
+				}
+				masses[x]->springs = spring;
+			}
 
-		// vertex list has a direct relationship to the map list ( one-to-one)
-			for(int i = 0; i < masses.size(); i++) {
-				masses[i]->neighbors = getNeighbors(i);
-			}
-	
-		// at frame ( time t = 0), apply one force in (x,y,z) direction to 
-		// surface element mass whose (x,y,z) postion is largest positively 
-		float max_x =  std::numeric_limits<float>::min(); //surface vertic
-		float max_y =  std::numeric_limits<float>::min(); //
-		float max_z =  std::numeric_limits<float>::min(); //
-
-		for(int i = 0; i < masses.size(); i++) {
-			if(masses[i]->curr_pos.x > max_x){ 
-				max_x_mass_id = i;
-			}
-			if(masses[i]->curr_pos.y > max_y){ 
-				max_y_mass_id = i;
-			}
-			if(masses[i]->curr_pos.z > max_z){ 
-				max_z_mass_id = i;
-			}
+			// for(int x =0; x<masses.size(); x++)
+			// {
+			//     std::cout<<masses[x]->m_id<<std::endl;
+				
+			//     for(int y = 0; y<masses[x]->springs.size(); ++y)
+			//     {
+			//      std::cout<<"A    "<<(mass_springs[x*6+y].getMassA())->m_id<<std::endl;           
+			//        std::cout<<"B  "<<(mass_springs[x*6+y].getMassB())->m_id<<std::endl;
+			//     }
+			//     std::cout<<"\n"<<std::endl;
+			// }
 		}
-			max_id = max_y_mass_id;
-     }
-	
-
-   void setupSpring()
-   {
-        int index =0;
-        for(int x =0; x<masses.size(); x++)
-        {
-            std::vector<int> spring;
-            for(int y = 0; y<masses[x]->neighbors.size(); ++y)
-            {  
-                int num = masses[x]->neighbors[y];
-                Spring s(index, masses[x], masses[num]);
-                spring.push_back(index);
-                mass_springs.push_back(s);
-                index++;
-            }
-            masses[x]->springs = spring;
-        }
-
-        // for(int x =0; x<masses.size(); x++)
-        // {
-        //     std::cout<<masses[x]->m_id<<std::endl;
-            
-        //     for(int y = 0; y<masses[x]->springs.size(); ++y)
-        //     {
-        //      std::cout<<"A    "<<(mass_springs[x*6+y].getMassA())->m_id<<std::endl;           
-        //        std::cout<<"B  "<<(mass_springs[x*6+y].getMassB())->m_id<<std::endl;
-        //     }
-        //     std::cout<<"\n"<<std::endl;
-        // }
-    }
 
 
 
-    void ErrorCallback(int error, const char* description) {
-    std::cerr << "GLFW Error: " << description << "\n";
-    }
+		void ErrorCallback(int error, const char* description) {
+		std::cerr << "GLFW Error: " << description << "\n";
+		}
 
-    void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
-		    int mods) {
+		void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
+				int mods) {
 
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, GL_TRUE);
-    else if (key == GLFW_KEY_W && action != GLFW_RELEASE) {
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			glfwSetWindowShouldClose(window, GL_TRUE);
+		else if (key == GLFW_KEY_W && action != GLFW_RELEASE) {
 
-			glm::vec3 center_old = eye + (camera_distance * look);
+				glm::vec3 center_old = eye + (camera_distance * look);
 
-			camera_distance -= zoom_speed;
-			glm::vec3 center = eye + (camera_distance * look);
+				camera_distance -= zoom_speed;
+				glm::vec3 center = eye + (camera_distance * look);
 
-			look = glm::normalize(center - eye);
-			eye += (center_old - center);
+				look = glm::normalize(center - eye);
+				eye += (center_old - center);
 
-   } else if (key == GLFW_KEY_S && action != GLFW_RELEASE) {
+	} else if (key == GLFW_KEY_S && action != GLFW_RELEASE) {
 
-			glm::vec3 center_old = eye + (camera_distance * look);
+				glm::vec3 center_old = eye + (camera_distance * look);
 
-			camera_distance += zoom_speed;
-			glm::vec3 center = eye + (camera_distance * look);
+				camera_distance += zoom_speed;
+				glm::vec3 center = eye + (camera_distance * look);
 
-			look = glm::normalize(center - eye);
-			eye += (center_old - center);
+				look = glm::normalize(center - eye);
+				eye += (center_old - center);
 
-    } else if (key == GLFW_KEY_A && action != GLFW_RELEASE) {
+		} else if (key == GLFW_KEY_A && action != GLFW_RELEASE) {
+
+				glm::vec3 tangent = glm::cross(look,up);
+
+				glm::vec3 center = eye + (camera_distance * look);
+				glm::vec3 new_center = center - (pan_speed * tangent);			
+
+				glm::vec3 new_eye = eye + (new_center - center);
+				eye = new_eye;
+
+
+		} else if (key == GLFW_KEY_D && action != GLFW_RELEASE) {
+
+				glm::vec3 tangent = glm::cross(look,up);
+
+				glm::vec3 center = eye + (camera_distance * look);
+				glm::vec3 new_center = center + (pan_speed * tangent);			
+
+				glm::vec3 new_eye = eye + (new_center - center);
+				eye = new_eye;
+
+		} else if (key == GLFW_KEY_LEFT && action != GLFW_RELEASE) {
+
+			glm::vec3 up_rotated = glm::rotate(up, roll_speed, look);
+			up = up_rotated;
+
+		} else if (key == GLFW_KEY_RIGHT && action != GLFW_RELEASE) {
+
+			glm::vec3 up_rotated = glm::rotate(up, -1 * roll_speed, look);
+			up = up_rotated;
+
+		} else if (key == GLFW_KEY_DOWN && action != GLFW_RELEASE) {
 
 			glm::vec3 tangent = glm::cross(look,up);
 
 			glm::vec3 center = eye + (camera_distance * look);
-			glm::vec3 new_center = center - (pan_speed * tangent);			
+			glm::vec3 new_center = center - (pan_speed * up);			
 
 			glm::vec3 new_eye = eye + (new_center - center);
 			eye = new_eye;
 
+		} else if (key == GLFW_KEY_UP && action != GLFW_RELEASE) {
 
-    } else if (key == GLFW_KEY_D && action != GLFW_RELEASE) {
+				glm::vec3 tangent = glm::cross(look,up);
 
-			glm::vec3 tangent = glm::cross(look,up);
+				glm::vec3 center = eye + (camera_distance * look);
+				glm::vec3 new_center = center + (pan_speed * up);			
 
-			glm::vec3 center = eye + (camera_distance * look);
-			glm::vec3 new_center = center + (pan_speed * tangent);			
+				glm::vec3 new_eye = eye + (new_center - center);
+				eye = new_eye;
 
-			glm::vec3 new_eye = eye + (new_center - center);
-			eye = new_eye;
-
-    } else if (key == GLFW_KEY_LEFT && action != GLFW_RELEASE) {
-
-		glm::vec3 up_rotated = glm::rotate(up, roll_speed, look);
-		up = up_rotated;
-
-    } else if (key == GLFW_KEY_RIGHT && action != GLFW_RELEASE) {
-
-		glm::vec3 up_rotated = glm::rotate(up, -1 * roll_speed, look);
-		up = up_rotated;
-
-    } else if (key == GLFW_KEY_DOWN && action != GLFW_RELEASE) {
-
-		glm::vec3 tangent = glm::cross(look,up);
-
-		glm::vec3 center = eye + (camera_distance * look);
-		glm::vec3 new_center = center - (pan_speed * up);			
-
-		glm::vec3 new_eye = eye + (new_center - center);
-		eye = new_eye;
-
-    } else if (key == GLFW_KEY_UP && action != GLFW_RELEASE) {
-
-			glm::vec3 tangent = glm::cross(look,up);
-
-			glm::vec3 center = eye + (camera_distance * look);
-			glm::vec3 new_center = center + (pan_speed * up);			
-
-			glm::vec3 new_eye = eye + (new_center - center);
-			eye = new_eye;
-
-    } else if (key == GLFW_KEY_C && action != GLFW_RELEASE)
-		fps_mode = !fps_mode;
-}
-
-// I'm not sure what the significance of screen coordinates are here
-	// i.e. why can't this just be in normal camera coordinates?
-// what is orbital and fps mode?
-void MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y) {
-  last_x = current_x;
-  last_y = current_y;
-  current_x = mouse_x;
-  current_y = mouse_y;
-  float delta_x = current_x - last_x;
-  float delta_y = current_y - last_y;
-  if (sqrt(delta_x * delta_x + delta_y * delta_y) < 1e-15) return;
-  if (drag_state && current_button == GLFW_MOUSE_BUTTON_LEFT) {
-    glm::vec3 mouse_direction = glm::normalize(glm::vec3(delta_x, delta_y, 0.0f));
-	glm::vec3 tan = glm::cross(look,up);
-	glm::vec3 md_world3 = (mouse_direction.x * tan) - (mouse_direction.y * up); // really it is just a change of bases
-	glm::vec3 rotation_axis = glm::normalize(glm::cross(look, md_world3));	
-
-	if(!fps_mode){ // orbital mode
-
-		// note :: your eye stays in the same spot
-		// but your look and up vectors ROTATE
-		// note :: orbital is ROTATE AROUND OBJECT, not REVOLVE THE EYE
-		// note :: do not use radians!
-		glm::vec3 up_rotation = glm::rotate(up, rotation_speed, rotation_axis);	
-		glm::vec3 look_rotation = glm::rotate(look, rotation_speed, rotation_axis);	
-		glm::vec3 eye_rotation = glm::rotate(eye, rotation_speed, rotation_axis);	
-
-		eye = eye_rotation;
-		up = up_rotation;
-		look = look_rotation;
-	} else { // fps mode ( note :: if look changes up changes too)
-
-		glm::vec3 look_rotation = glm::rotate(look, rotation_speed, rotation_axis);	
-		look = look_rotation;
-
-		glm::vec3 up_rotation = glm::rotate(up, rotation_speed, rotation_axis);	
-		up = up_rotation;
+		} else if (key == GLFW_KEY_C && action != GLFW_RELEASE)
+			fps_mode = !fps_mode;
 	}
 
-	// but how to do this per each frame
-	// in fact how do I know that zoom_speed works by frame?
-  } else if (drag_state && current_button == GLFW_MOUSE_BUTTON_RIGHT) {
-  		if(delta_y > 0) {
+	// I'm not sure what the significance of screen coordinates are here
+		// i.e. why can't this just be in normal camera coordinates?
+	// what is orbital and fps mode?
+	void MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y) {
+	last_x = current_x;
+	last_y = current_y;
+	current_x = mouse_x;
+	current_y = mouse_y;
+	float delta_x = current_x - last_x;
+	float delta_y = current_y - last_y;
+	if (sqrt(delta_x * delta_x + delta_y * delta_y) < 1e-15) return;
+	if (drag_state && current_button == GLFW_MOUSE_BUTTON_LEFT) {
+		glm::vec3 mouse_direction = glm::normalize(glm::vec3(delta_x, delta_y, 0.0f));
+		glm::vec3 tan = glm::cross(look,up);
+		glm::vec3 md_world3 = (mouse_direction.x * tan) - (mouse_direction.y * up); // really it is just a change of bases
+		glm::vec3 rotation_axis = glm::normalize(glm::cross(look, md_world3));	
 
-			glm::vec3 center_old = eye + (camera_distance * look);
+		if(!fps_mode){ // orbital mode
 
-			camera_distance -= zoom_speed;
-			glm::vec3 center = eye + (camera_distance * look);
+			// note :: your eye stays in the same spot
+			// but your look and up vectors ROTATE
+			// note :: orbital is ROTATE AROUND OBJECT, not REVOLVE THE EYE
+			// note :: do not use radians!
+			glm::vec3 up_rotation = glm::rotate(up, rotation_speed, rotation_axis);	
+			glm::vec3 look_rotation = glm::rotate(look, rotation_speed, rotation_axis);	
+			glm::vec3 eye_rotation = glm::rotate(eye, rotation_speed, rotation_axis);	
 
-			look = glm::normalize(center - eye);
-			eye += (center_old - center);
-		} else {
-			glm::vec3 center_old = eye + (camera_distance * look);
+			eye = eye_rotation;
+			up = up_rotation;
+			look = look_rotation;
+		} else { // fps mode ( note :: if look changes up changes too)
 
-			camera_distance += zoom_speed;
-			glm::vec3 center = eye + (camera_distance * look);
+			glm::vec3 look_rotation = glm::rotate(look, rotation_speed, rotation_axis);	
+			look = look_rotation;
 
-			look = glm::normalize(center - eye);
-			eye += (center_old - center);
- 		}
-  }
-}
-
-void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-  drag_state = (action == GLFW_PRESS);
-  current_button = button;
-}
-
-int main(int argc, char* argv[]) {
-
-	// SETTING UP OpenGL Context
-  if (!glfwInit()) exit(EXIT_FAILURE);
-
-  glfwSetErrorCallback(ErrorCallback);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_SAMPLES, 4);
-
-  GLFWwindow* window = glfwCreateWindow(window_width, window_height,
-                                        &window_title[0], nullptr, nullptr);
-  CHECK_SUCCESS(window != nullptr);
-  glfwMakeContextCurrent(window);
-  glewExperimental = GL_TRUE;
-  CHECK_SUCCESS(glewInit() == GLEW_OK);
-  glGetError();  // clear GLEW's error for it
-
-  glfwSetKeyCallback(window, KeyCallback);
-  glfwSetCursorPosCallback(window, MousePosCallback);
-  glfwSetMouseButtonCallback(window, MouseButtonCallback);
-  glfwSwapInterval(1);
-  const GLubyte* renderer = glGetString(GL_RENDERER);  // get renderer string
-  const GLubyte* version = glGetString(GL_VERSION);    // version as a string
-  std::cout << "Renderer: " << renderer << "\n";
-  std::cout << "OpenGL version supported:" << version << "\n";
-
-
-
-	// spring system geometries, from scene graph object files
-  std::string file_name = "obj/sphere.obj";
-  LoadObj(file_name, menger_vertices, menger_faces);
-  Load_SpringSystem();
-  setupSpring();
-
-	// Plane
-  CreatePlane();
-  std::cout << "Loaded plane and vertices geometries" << std::endl; 
-
-  // Setup our VAO array
-  CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, array_objects));
-
-///////////////////////////////////////////////
-///////////////////////////////////////////////
-///////////////////////////////////////////////
-
-// Setup the menger array object.
-  // Switch to the kMenger VAO.
-  // always have to switch and bind right buffer
-  CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
-
-  // Generate buffer objects for kMengerVao
-  CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kMengerVao][0]));
-
-  // Setup vertex data for kMenger VBOs
-  CHECK_GL_ERROR(
-      glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-  CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-                              sizeof(float) * menger_vertices.size() * 4,
-                              &menger_vertices[0], GL_STATIC_DRAW));
-  CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-  CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-  // Setup element array buffer. (kMenger faces data )
-  CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-                              buffer_objects[kMengerVao][kIndexBuffer]));
-  CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                              sizeof(uint32_t) * menger_faces.size() * 3,
-                              &menger_faces[0], GL_STATIC_DRAW));
-
-  // Let's create our Menger SHADER program.
-  GLuint program_id = 0;
-  CHECK_GL_ERROR(program_id = glCreateProgram());
-
-  // Setup vertex shader.
-  GLuint vertex_shader_id = 0;
-  const char* vertex_source_pointer = vertex_shader;
-  CHECK_GL_ERROR(vertex_shader_id = glCreateShader(GL_VERTEX_SHADER));
-  CHECK_GL_ERROR(
-      glShaderSource(vertex_shader_id, 1, &vertex_source_pointer, nullptr));
-  glCompileShader(vertex_shader_id);
-  CHECK_GL_SHADER_ERROR(vertex_shader_id);
-
-  // Setup geometry shader.
-  GLuint geometry_shader_id = 0;
-  const char* geometry_source_pointer = geometry_shader;
-  CHECK_GL_ERROR(geometry_shader_id = glCreateShader(GL_GEOMETRY_SHADER));
-  CHECK_GL_ERROR(
-      glShaderSource(geometry_shader_id, 1, &geometry_source_pointer, nullptr));
-  glCompileShader(geometry_shader_id);
-  CHECK_GL_SHADER_ERROR(geometry_shader_id);
-
-  // Setup fragment shader.
-  GLuint fragment_shader_id = 0;
-  const char* fragment_source_pointer = fragment_shader;
-  CHECK_GL_ERROR(fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
-  CHECK_GL_ERROR(
-      glShaderSource(fragment_shader_id, 1, &fragment_source_pointer, nullptr));
-  glCompileShader(fragment_shader_id);
-  CHECK_GL_SHADER_ERROR(fragment_shader_id);
-
-	// ATTACH SHADERS
-  CHECK_GL_ERROR(glAttachShader(program_id, vertex_shader_id));
-  CHECK_GL_ERROR(glAttachShader(program_id, fragment_shader_id));
-  CHECK_GL_ERROR(glAttachShader(program_id, geometry_shader_id));
-
- // Bind attributes. ( part of linking step )
-  CHECK_GL_ERROR(glBindAttribLocation(program_id, 0, "vertex_position"));
-  CHECK_GL_ERROR(glBindFragDataLocation(program_id, 0, "fragment_color"));
-  glLinkProgram(program_id);
-  CHECK_GL_PROGRAM_ERROR(program_id);
-
-  // Get the uniform locations.
-  GLint projection_matrix_location = 0;
-  CHECK_GL_ERROR(projection_matrix_location =
-                     glGetUniformLocation(program_id, "projection"));
-  GLint view_matrix_location = 0;
-  CHECK_GL_ERROR(view_matrix_location =
-                     glGetUniformLocation(program_id, "view"));
-  GLint light_position_location = 0;
-  CHECK_GL_ERROR(light_position_location =
-                     glGetUniformLocation(program_id, "light_position"));
-
-///////////////////////////////////////////////
-///////////////////////////////////////////////
-///////////////////////////////////////////////
-  // Setup the plane array object.
-  // Switch to the kPlaneVAO.
-  CHECK_GL_ERROR(glBindVertexArray(array_objects[kPlaneVao]));
-  // Generate buffer objects for kMengerVao
-  CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kPlaneVao][0]));
-
-  // Let's create our plane SHADER program.
-  GLuint plane_program_id = 1;
-  CHECK_GL_ERROR(plane_program_id = glCreateProgram());
-
-  // Setup vertex data for kMenger VBOs
-// why is this causing an issue?  (keyboard controls not working at this point )
-  CHECK_GL_ERROR(
-      glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kPlaneVao][plane_kVertexBuffer]));
-  CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-                              sizeof(float) * plane_vertices.size() * 4,
-                              &plane_vertices[0], GL_STATIC_DRAW));
-  CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-  CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-  // Setup element array buffer. (kMenger faces data )
-  CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-                              buffer_objects[kPlaneVao][kIndexBuffer]));
-  CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                              sizeof(uint32_t) * plane_faces.size() * 3,
-                              &plane_faces[0], GL_STATIC_DRAW));
-
-  // Setup fragment shader.
-  GLuint plane_fragment_shader_id = 1;
-  const char* plane_fragment_source_pointer = plane_fragment_shader; 
-  CHECK_GL_ERROR(plane_fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
-  CHECK_GL_ERROR(
-      glShaderSource(plane_fragment_shader_id, 1, &plane_fragment_source_pointer, nullptr));
-  glCompileShader(plane_fragment_shader_id);
-  CHECK_GL_SHADER_ERROR(plane_fragment_shader_id);
-
-	// ATTACH SHADERS
-  CHECK_GL_ERROR(glAttachShader(plane_program_id, vertex_shader_id));
-  CHECK_GL_ERROR(glAttachShader(plane_program_id, geometry_shader_id));
-  //CHECK_GL_ERROR(glAttachShader(plane_program_id, fragment_shader_id));
-  CHECK_GL_ERROR(glAttachShader(plane_program_id, plane_fragment_shader_id));
-
-  // Bind attributes. ( linking step )
-  CHECK_GL_ERROR(glBindAttribLocation(plane_program_id, 0, "vertex_position"));
-  CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "plane_fragment_color")); // need 0 (numerical pos for gpu) (things don't match!)
-  //CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "fragment_color")); // need 0 (numerical pos for gpu) (things don't match!)
-
-	// there is an issue with plane shader program itself at the moment
-	
-  glLinkProgram(plane_program_id);
-  CHECK_GL_PROGRAM_ERROR(plane_program_id);
-
-  // Get the uniform locations. [ not sure if this also needs to be copied too ]
-  GLint plane_projection_matrix_location = 1;
-  CHECK_GL_ERROR(plane_projection_matrix_location =
-                     glGetUniformLocation(plane_program_id, "projection"));
-  GLint plane_view_matrix_location = 1;
-  CHECK_GL_ERROR(plane_view_matrix_location =
-                     glGetUniformLocation(plane_program_id, "view"));
-  GLint plane_light_position_location = 1;
-  CHECK_GL_ERROR(plane_light_position_location =
-                     glGetUniformLocation(plane_program_id, "light_position"));
-	//////////////////////////////////////////////
-	//////////////////////////////////////////////
-	//////////////////////////////////////////////
-
-  glfwSwapInterval(1);
-  glm::vec4 light_position = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-
-// rendering loop - swich between VAO and VBOs
-
-  while (!glfwWindowShouldClose(window)) {
-
-    // Setup some basic window stuff.
-    glfwGetFramebufferSize(window, &window_width, &window_height);
-    glViewport(0, 0, window_width, window_height);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_MULTISAMPLE);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDepthFunc(GL_LESS);
-
-	//////////////////////////////////////////////
-	//////////////////////////////////////////////
-	//////////////////////////////////////////////
-
-	glm::vec3 center = glm::vec3(eye.x + camera_distance * look.x, eye.y + camera_distance * look.y, eye.z + camera_distance * look.z);
-	glm::mat4 view_matrix = LookAt(eye, center, up); 
-	aspect = static_cast<float>(window_width) / window_height;
-    glm::mat4 projection_matrix = Perspective(45.0f, aspect, 0.0001f, 1000.0f);
-
-	///////////////////////////////////////////////////
-	///////////////////////////////////////////////////
-	/* SIMULATION CODE 
-	 * [1] set all NET forces to 0
-	 * [2] set positive force to largest surface element
-	 * [3] calculate q_i for each m_i
-	 * [4] calculate and apply all external forces to each mass
-	 * [5] calculate v_i for each m_i
-	 * [6] reset menger vertices to new, physically simulated, vertices
-	 */
-
-	 // [3] calculate q_i for each m_i
-		for(int j = 0; j < masses.size(); j++) {
-			masses[j]->zero_out_forces();
-			//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
-			masses[j]->updatePos(timeStep);
-			//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
+			glm::vec3 up_rotation = glm::rotate(up, rotation_speed, rotation_axis);	
+			up = up_rotation;
 		}
 
-	 // [4] calculate and apply all external forces to each mass
+		// but how to do this per each frame
+		// in fact how do I know that zoom_speed works by frame?
+	} else if (drag_state && current_button == GLFW_MOUSE_BUTTON_RIGHT) {
+			if(delta_y > 0) {
+
+				glm::vec3 center_old = eye + (camera_distance * look);
+
+				camera_distance -= zoom_speed;
+				glm::vec3 center = eye + (camera_distance * look);
+
+				look = glm::normalize(center - eye);
+				eye += (center_old - center);
+			} else {
+				glm::vec3 center_old = eye + (camera_distance * look);
+
+				camera_distance += zoom_speed;
+				glm::vec3 center = eye + (camera_distance * look);
+
+				look = glm::normalize(center - eye);
+				eye += (center_old - center);
+			}
+	}
+	}
+
+	void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+	drag_state = (action == GLFW_PRESS);
+	current_button = button;
+	}
+
+	int main(int argc, char* argv[]) {
+
+		// SETTING UP OpenGL Context
+	if (!glfwInit()) exit(EXIT_FAILURE);
+
+	glfwSetErrorCallback(ErrorCallback);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_SAMPLES, 4);
+
+	GLFWwindow* window = glfwCreateWindow(window_width, window_height,
+											&window_title[0], nullptr, nullptr);
+	CHECK_SUCCESS(window != nullptr);
+	glfwMakeContextCurrent(window);
+	glewExperimental = GL_TRUE;
+	CHECK_SUCCESS(glewInit() == GLEW_OK);
+	glGetError();  // clear GLEW's error for it
+
+	glfwSetKeyCallback(window, KeyCallback);
+	glfwSetCursorPosCallback(window, MousePosCallback);
+	glfwSetMouseButtonCallback(window, MouseButtonCallback);
+	glfwSwapInterval(1);
+	const GLubyte* renderer = glGetString(GL_RENDERER);  // get renderer string
+	const GLubyte* version = glGetString(GL_VERSION);    // version as a string
+	std::cout << "Renderer: " << renderer << "\n";
+	std::cout << "OpenGL version supported:" << version << "\n";
+
+
+
+		// spring system geometries, from scene graph object files
+	std::string file_name = "obj/sphere.obj";
+	LoadObj(file_name, menger_vertices, menger_faces);
+	Load_SpringSystem();
+	setupSpring();
+	for(int i = 0; i < masses.size(); i++)
+		mi_hit_floor.push_back(false);
+
+		// Plane
+	CreatePlane();
+	std::cout << "Loaded plane and vertices geometries" << std::endl; 
+
+	// Setup our VAO array
+	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, array_objects));
+
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+
+	// Setup the menger array object.
+	// Switch to the kMenger VAO.
+	// always have to switch and bind right buffer
+	CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
+
+	// Generate buffer objects for kMengerVao
+	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kMengerVao][0]));
+
+	// Setup vertex data for kMenger VBOs
+	CHECK_GL_ERROR(
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+								sizeof(float) * menger_vertices.size() * 4,
+								&menger_vertices[0], GL_STATIC_DRAW));
+	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
+	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
+
+	// Setup element array buffer. (kMenger faces data )
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+								buffer_objects[kMengerVao][kIndexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+								sizeof(uint32_t) * menger_faces.size() * 3,
+								&menger_faces[0], GL_STATIC_DRAW));
+
+	// Let's create our Menger SHADER program.
+	GLuint program_id = 0;
+	CHECK_GL_ERROR(program_id = glCreateProgram());
+
+	// Setup vertex shader.
+	GLuint vertex_shader_id = 0;
+	const char* vertex_source_pointer = vertex_shader;
+	CHECK_GL_ERROR(vertex_shader_id = glCreateShader(GL_VERTEX_SHADER));
+	CHECK_GL_ERROR(
+		glShaderSource(vertex_shader_id, 1, &vertex_source_pointer, nullptr));
+	glCompileShader(vertex_shader_id);
+	CHECK_GL_SHADER_ERROR(vertex_shader_id);
+
+	// Setup geometry shader.
+	GLuint geometry_shader_id = 0;
+	const char* geometry_source_pointer = geometry_shader;
+	CHECK_GL_ERROR(geometry_shader_id = glCreateShader(GL_GEOMETRY_SHADER));
+	CHECK_GL_ERROR(
+		glShaderSource(geometry_shader_id, 1, &geometry_source_pointer, nullptr));
+	glCompileShader(geometry_shader_id);
+	CHECK_GL_SHADER_ERROR(geometry_shader_id);
+
+	// Setup fragment shader.
+	GLuint fragment_shader_id = 0;
+	const char* fragment_source_pointer = fragment_shader;
+	CHECK_GL_ERROR(fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
+	CHECK_GL_ERROR(
+		glShaderSource(fragment_shader_id, 1, &fragment_source_pointer, nullptr));
+	glCompileShader(fragment_shader_id);
+	CHECK_GL_SHADER_ERROR(fragment_shader_id);
+
+		// ATTACH SHADERS
+	CHECK_GL_ERROR(glAttachShader(program_id, vertex_shader_id));
+	CHECK_GL_ERROR(glAttachShader(program_id, fragment_shader_id));
+	CHECK_GL_ERROR(glAttachShader(program_id, geometry_shader_id));
+
+	// Bind attributes. ( part of linking step )
+	CHECK_GL_ERROR(glBindAttribLocation(program_id, 0, "vertex_position"));
+	CHECK_GL_ERROR(glBindFragDataLocation(program_id, 0, "fragment_color"));
+	glLinkProgram(program_id);
+	CHECK_GL_PROGRAM_ERROR(program_id);
+
+	// Get the uniform locations.
+	GLint projection_matrix_location = 0;
+	CHECK_GL_ERROR(projection_matrix_location =
+						glGetUniformLocation(program_id, "projection"));
+	GLint view_matrix_location = 0;
+	CHECK_GL_ERROR(view_matrix_location =
+						glGetUniformLocation(program_id, "view"));
+	GLint light_position_location = 0;
+	CHECK_GL_ERROR(light_position_location =
+						glGetUniformLocation(program_id, "light_position"));
+
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	// Setup the plane array object.
+	// Switch to the kPlaneVAO.
+	CHECK_GL_ERROR(glBindVertexArray(array_objects[kPlaneVao]));
+	// Generate buffer objects for kMengerVao
+	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &buffer_objects[kPlaneVao][0]));
+
+	// Let's create our plane SHADER program.
+	GLuint plane_program_id = 1;
+	CHECK_GL_ERROR(plane_program_id = glCreateProgram());
+
+	// Setup vertex data for kMenger VBOs
+	// why is this causing an issue?  (keyboard controls not working at this point )
+	CHECK_GL_ERROR(
+		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kPlaneVao][plane_kVertexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+								sizeof(float) * plane_vertices.size() * 4,
+								&plane_vertices[0], GL_STATIC_DRAW));
+	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
+	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
+
+	// Setup element array buffer. (kMenger faces data )
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+								buffer_objects[kPlaneVao][kIndexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+								sizeof(uint32_t) * plane_faces.size() * 3,
+								&plane_faces[0], GL_STATIC_DRAW));
+
+	// Setup fragment shader.
+	GLuint plane_fragment_shader_id = 1;
+	const char* plane_fragment_source_pointer = plane_fragment_shader; 
+	CHECK_GL_ERROR(plane_fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER));
+	CHECK_GL_ERROR(
+		glShaderSource(plane_fragment_shader_id, 1, &plane_fragment_source_pointer, nullptr));
+	glCompileShader(plane_fragment_shader_id);
+	CHECK_GL_SHADER_ERROR(plane_fragment_shader_id);
+
+		// ATTACH SHADERS
+	CHECK_GL_ERROR(glAttachShader(plane_program_id, vertex_shader_id));
+	CHECK_GL_ERROR(glAttachShader(plane_program_id, geometry_shader_id));
+	//CHECK_GL_ERROR(glAttachShader(plane_program_id, fragment_shader_id));
+	CHECK_GL_ERROR(glAttachShader(plane_program_id, plane_fragment_shader_id));
+
+	// Bind attributes. ( linking step )
+	CHECK_GL_ERROR(glBindAttribLocation(plane_program_id, 0, "vertex_position"));
+	CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "plane_fragment_color")); // need 0 (numerical pos for gpu) (things don't match!)
+	//CHECK_GL_ERROR(glBindFragDataLocation(plane_program_id, 0, "fragment_color")); // need 0 (numerical pos for gpu) (things don't match!)
+
+		// there is an issue with plane shader program itself at the moment
+		
+	glLinkProgram(plane_program_id);
+	CHECK_GL_PROGRAM_ERROR(plane_program_id);
+
+	// Get the uniform locations. [ not sure if this also needs to be copied too ]
+	GLint plane_projection_matrix_location = 1;
+	CHECK_GL_ERROR(plane_projection_matrix_location =
+						glGetUniformLocation(plane_program_id, "projection"));
+	GLint plane_view_matrix_location = 1;
+	CHECK_GL_ERROR(plane_view_matrix_location =
+						glGetUniformLocation(plane_program_id, "view"));
+	GLint plane_light_position_location = 1;
+	CHECK_GL_ERROR(plane_light_position_location =
+						glGetUniformLocation(plane_program_id, "light_position"));
+		//////////////////////////////////////////////
+		//////////////////////////////////////////////
+		//////////////////////////////////////////////
+
+	glfwSwapInterval(1);
+	glm::vec4 light_position = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// rendering loop - swich between VAO and VBOs
+
+	while (!glfwWindowShouldClose(window)) {
+
+		// Setup some basic window stuff.
+		glfwGetFramebufferSize(window, &window_width, &window_height);
+		glViewport(0, 0, window_width, window_height);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_MULTISAMPLE);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDepthFunc(GL_LESS);
+
+		//////////////////////////////////////////////
+		//////////////////////////////////////////////
+		//////////////////////////////////////////////
+
+		glm::vec3 center = glm::vec3(eye.x + camera_distance * look.x, eye.y + camera_distance * look.y, eye.z + camera_distance * look.z);
+		glm::mat4 view_matrix = LookAt(eye, center, up); 
+		aspect = static_cast<float>(window_width) / window_height;
+		glm::mat4 projection_matrix = Perspective(45.0f, aspect, 0.0001f, 1000.0f);
+
+		///////////////////////////////////////////////////
+		///////////////////////////////////////////////////
+		/* SIMULATION CODE 
+		* [1] set all NET forces to 0
+		* [2] set positive force to largest surface element
+		* [3] calculate q_i for each m_i
+		* [4] calculate and apply all external forces to each mass
+		* [5] calculate v_i for each m_i
+		* [6] reset menger vertices to new, physically simulated, vertices
+		*/
+
+		// [3] calculate q_i for each m_i
+			for(int j = 0; j < masses.size(); j++) {
+				masses[j]->zero_out_forces();
+				//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
+				masses[j]->updatePos(timeStep);
+				//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
+			}
+
+		// [4] calculate and apply all external forces to each mass
 		for(int j = 0; j < masses.size(); j++) {
 			calc_NetForces(masses[j]->m_id);
 		}
 
-		/*
 		for(int j = 0; j < masses.size(); j++) {
-			if(masses[j]->curr_pos.y <= -1)
+			if(mi_hit_floor[j] == false)
 			{
-				hit_floor = true;
-				break;
+				masses[j]->applyForce(glm::vec3(0,-0.098,0));
+				if(masses[j]->curr_pos.y <= -1.9)
+				{
+					mi_hit_floor[j] = true;
+					masses[j]->vel = glm::vec3(0,0,0);
+					break;
+				}
 			}
-			masses[j]->applyForce(glm::vec3(0,-0.098,0));
+				
 		}
-		if(hit_floor) {
-			for(int j = 0; j < masses.size(); j++) {
-				masses[j]->applyForce(glm::vec3(0,2,0));
-			}
-		}
-		*/
+
 
 	 // [5] calculate v_i for each m_i
 		for(int j = 0; j < masses.size(); j++) {
