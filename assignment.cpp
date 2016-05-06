@@ -19,10 +19,10 @@
 #include <GLFW/glfw3.h>
 
 float curTime = 0.0;
-float timeStep = 0.0066f;  // analogy to 60 fps
-float floor_coeff = 500.0;
-float floor_cutoff = -1.9;
-glm::vec3 gravity = glm::vec3(0,-0.98,0);
+float timeStep = 0.0009f;  // analogy to 60 fps
+float floor_coeff = 7.5;
+float floor_cutoff = -1.60;
+glm::vec3 gravity = glm::vec3(0,-0.245,0);
 //glm::vec3 gravity = glm::vec3(0,-9.8,0);
 bool max_id_floorHit = false;
 
@@ -1041,82 +1041,84 @@ void CreatePlane(){
 		aspect = static_cast<float>(window_width) / window_height;
 		glm::mat4 projection_matrix = Perspective(45.0f, aspect, 0.0001f, 1000.0f);
 
-		///////////////////////////////////////////////////
-		///////////////////////////////////////////////////
-		/* SIMULATION CODE 
-		* [1] set all NET forces to 0
-		* 	[1.1] set positive force to largest surface element = glm::length();
-		* [2] calculate q_i for each m_i
-		* [3] calculate and apply all external forces to each mass
-		* [4] calculate v_i for each m_i
-		* [5] reset menger vertices to new, physically simulated, vertices
-		*/
+		for(int k = 0; k < 20; k++)
+		{
 
-		// [1] set all NET forces to 0
-		// [2] calculate q_i for each m_i
+			///////////////////////////////////////////////////
+			///////////////////////////////////////////////////
+			/* SIMULATION CODE 
+			* [1] set all NET forces to 0
+			* 	[1.1] set positive force to largest surface element = glm::length();
+			* [2] calculate q_i for each m_i
+			* [3] calculate and apply all external forces to each mass
+			* [4] calculate v_i for each m_i
+			* [5] reset menger vertices to new, physically simulated, vertices
+			*/
+
+			// [1] set all NET forces to 0
+			// [2] calculate q_i for each m_i
+				for(int j = 0; j < masses.size(); j++) {
+					masses[j]->zero_out_forces();
+					//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
+					masses[j]->updatePos(timeStep*0.6f);
+					//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
+				}
+
+			// [3] calculate and apply ALL external forces to each mass
 			for(int j = 0; j < masses.size(); j++) {
-				masses[j]->zero_out_forces();
-				//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
-				masses[j]->updatePos(timeStep);
-				//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
+				calc_NetForces(masses[j]->m_id);
 			}
 
-		// [3] calculate and apply ALL external forces to each mass
-		for(int j = 0; j < masses.size(); j++) {
-			calc_NetForces(masses[j]->m_id);
-		}
-
-		if(masses[max_id]->curr_pos.y < floor_cutoff)
-			max_id_floorHit = true;
-		for(int j = 0; j < masses.size(); j++) {
-			masses[j]->applyForce(gravity);
-			if(masses[j]->curr_pos.y < floor_cutoff)
-			{
-				glm::vec3 mass_floor_dist = masses[j]->curr_pos - glm::vec3(0,floor_cutoff,0) ;
-				float floor_dist = glm::length(mass_floor_dist);
-				masses[j]->applyForce(floor_coeff * glm::vec3(0,floor_dist,0));
+			if(masses[max_id]->curr_pos.y < floor_cutoff)
+				max_id_floorHit = true;
+			for(int j = 0; j < masses.size(); j++) {
+				masses[j]->applyForce(gravity);
+				if(masses[j]->curr_pos.y < floor_cutoff)
+				{
+					glm::vec3 mass_floor_dist = masses[j]->curr_pos - glm::vec3(0,floor_cutoff,0) ;
+					float floor_dist = glm::length(mass_floor_dist);
+					masses[j]->applyForce(floor_coeff * glm::vec3(0,floor_dist,0));
+				}
 			}
+
+			// [4] calculate v_i for each m_i
+			for(int j = 0; j < masses.size(); j++) {
+				masses[j]->updateVel(timeStep * 0.6f);
+				//std::cout << "Mass [ " << j << "] has velocity = " << masses[j]->vel << std::endl;
+			}
+
+		// [5] reset menger vertices to new, physically simulated, vertices
+			menger_vertices.clear();
+			for(int j = 0; j < masses.size(); j++) {
+				menger_vertices.push_back(glm::vec4(masses[j]->curr_pos,1));
+			} 
+
+			// std::vector<glm::vec4> small_sphere_vertices;
+			// std::vector<glm::uvec3> small_sphere_faces;
+			// base_sphere_vertices = the small sphere that helps start the process
+			// base_sphere_faces);
+			// base_center ( vector of the center ) = the center of said small sphere
+			// kSmall vao
+
+			// given list of vertices, calculate distances and then set offset of small sphere
+			small_sphere_vertices.clear();
+			small_sphere_faces.clear();
+			load_smallSpheres();
 		}
-
-		// [4] calculate v_i for each m_i
-		for(int j = 0; j < masses.size(); j++) {
-			masses[j]->updateVel(timeStep * 0.9f);
-			//std::cout << "Mass [ " << j << "] has velocity = " << masses[j]->vel << std::endl;
-		}
-
-	// [5] reset menger vertices to new, physically simulated, vertices
-		menger_vertices.clear();
-		for(int j = 0; j < masses.size(); j++) {
-			menger_vertices.push_back(glm::vec4(masses[j]->curr_pos,1));
-		} 
-
-		// std::vector<glm::vec4> small_sphere_vertices;
-		// std::vector<glm::uvec3> small_sphere_faces;
-		// base_sphere_vertices = the small sphere that helps start the process
-		// base_sphere_faces);
-		// base_center ( vector of the center ) = the center of said small sphere
-		// kSmall vao
-
-		// given list of vertices, calculate distances and then set offset of small sphere
-		small_sphere_vertices.clear();
-		small_sphere_faces.clear();
-		load_smallSpheres();
-
-		// math is right, but image is not showing up!!!
 
 		/*! INSERT OPENGL CODE HERE TO REPASS VERTICES */
-		// each bind buffer call is separete 
-  		CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
+		//each bind buffer call is separete 
+  		// CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
 
-  		CHECK_GL_ERROR(
-   	   		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
-	    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(float) * menger_vertices.size() * 4,
-					&menger_vertices[0], GL_STATIC_DRAW));
+  		// CHECK_GL_ERROR(
+   	//    		glBindBuffer(GL_ARRAY_BUFFER, buffer_objects[kMengerVao][kVertexBuffer]));
+	   //  CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
+				// 	sizeof(float) * menger_vertices.size() * 4,
+				// 	&menger_vertices[0], GL_STATIC_DRAW));
 
-	    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-									sizeof(uint32_t) * menger_faces.size() * 3,
-									&menger_faces[0], GL_STATIC_DRAW));
+	   //  CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+				// 					sizeof(uint32_t) * menger_faces.size() * 3,
+				// 					&menger_faces[0], GL_STATIC_DRAW));
 
 		//bind to VAO for small spheres
 		CHECK_GL_ERROR(glBindVertexArray(array_objects[kSmallVao]));
@@ -1138,23 +1140,23 @@ void CreatePlane(){
 	///////////////////////////////////////////////////
 	///////////////////////////////////////////////////
 
-    // Switch to our Menger VAO.
-    CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
+    //Switch to our Menger VAO.
+    // CHECK_GL_ERROR(glBindVertexArray(array_objects[kMengerVao]));
 
-    // Use our program.
-    CHECK_GL_ERROR(glUseProgram(program_id));
+    // // Use our program.
+    // CHECK_GL_ERROR(glUseProgram(program_id));
 
-    // Pass uniforms in.
-    CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE,
-                                      &projection_matrix[0][0]));
-    CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE,
-                                      &view_matrix[0][0]));
-    CHECK_GL_ERROR(
-        glUniform4fv(light_position_location, 1, &light_position[0]));
+    // // Pass uniforms in.
+    // CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE,
+    //                                   &projection_matrix[0][0]));
+    // CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE,
+    //                                   &view_matrix[0][0]));
+    // CHECK_GL_ERROR(
+    //     glUniform4fv(light_position_location, 1, &light_position[0]));
 
-    // Draw our triangles.
-    CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, menger_faces.size() * 3,
-                                  GL_UNSIGNED_INT, 0));
+    // // Draw our triangles.
+    // CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, menger_faces.size() * 3,
+    //                               GL_UNSIGNED_INT, 0));
 
     /////////////////////////////////////////////////// 
     /////////////////////////////////////////////////// 

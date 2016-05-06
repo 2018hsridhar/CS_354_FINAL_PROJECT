@@ -17,7 +17,7 @@ struct DIST
 struct Mass
 {
 	int m_id;
-	float m = 1.0;	
+	float m = 5.0;	
 	glm::vec3 old_pos = glm::vec3(0,0,0);
 	glm::vec3 curr_pos = glm::vec3(0,0,0);
 	glm::vec3 vel = glm::vec3(0,0,0);
@@ -42,8 +42,8 @@ class Spring
 	int s_id;
 	Mass *A;
 	Mass *B;
-	float kCoeff = 50.0; // find some number online, or just test our yourself
-	float kDamp = kCoeff / 1000.0; // find some number online, or just test our yourself
+	float kCoeff = 10.0; // find some number online, or just test our yourself
+	float kDamp = kCoeff / 500.0; // find some number online, or just test our yourself
 	float equil_len = 0;
 	float disp = 0; // (-) displacement = compressed, (+) displacement = stretched
 
