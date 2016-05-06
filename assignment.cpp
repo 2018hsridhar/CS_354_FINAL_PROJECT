@@ -19,16 +19,23 @@
 #include <GLFW/glfw3.h>
 
 float curTime = 0.0;
-float timeStep = 0.0009f;  // analogy to 60 fps
-float floor_coeff = 7.5;
-float floor_cutoff = -1.60;
+float timeStep = 0.005f;  // analogy to 60 fps
+float floor_coeff = 0.245f;
+float floor_cutoff = -2.0f;
 glm::vec3 gravity = glm::vec3(0,-0.245,0);
 //glm::vec3 gravity = glm::vec3(0,-9.8,0);
 bool max_id_floorHit = false;
+bool direction_going_up = false;
+bool spring_breaks = false;
 
 int max_x_mass_id = 0; //surface vertic
 int max_y_mass_id = 0; //
 int max_z_mass_id = 0; //
+
+int min_x_mass_id = 0; //surface vertic
+int min_y_mass_id = 0; //
+int min_z_mass_id = 0; //
+
 std::string file_name = "obj/sphere.obj";
 std::string file_name_base = "obj/sphere_tiny.obj";
 
@@ -112,7 +119,7 @@ std::vector<glm::uvec3> small_sphere_faces;
 
 std::vector<Mass*> masses;
 std::vector<int> visited_Masses;
-glm::vec3 init_Force = glm::vec3(0,5,0);
+glm::vec3 init_Force = glm::vec3(0,0.5,0);
 
 std::vector<glm::vec4> plane_vertices;
 std::vector<glm::uvec3> plane_faces;
@@ -403,22 +410,28 @@ void CreatePlane(){
 	/* PROBABLY BUGGY */
 	void calc_NetForces(int mass_id)
 	{
-			if(curTime <= 0.010 && force_applied==false)
-		{
-			if(!max_id_floorHit) {
-				masses[max_id]->applyForce(init_Force);
-			} else {
-				std::cout << "max id floor hit is now true" << std::endl;
-			}
-			force_applied = true;
-		}
-				
+		bool breaking = false;
+
+    //*-------------------------uncomment  those two if statements to see breaking ------------------------*//
+		// if(curTime <= 0.010 && force_applied==false && masses[max_y_mass_id]->force.y <=500)
+		// {
+		// 		std::cout<<"hello"<<std::endl;
+		// 		masses[max_y_mass_id]->applyForce(init_Force);
+
+		// } 
+		// if(masses[max_y_mass_id]->force.y >=500)
+		// {
+		// 	masses[max_y_mass_id]->vel = masses[max_y_mass_id]->vel + glm::vec3(0,0,0);
+		// 	breaking = true;
+		// }			
 
 			//calculate spring forces, add them
+		if(breaking == false)
+		{
 			std::vector<int> my_springs = masses[mass_id]->springs;
 			for(int i = 0; i < my_springs.size(); i++) 
 			{
-	
+				
 				// get spring masses and vectors for masses
 				Mass *self = mass_springs[my_springs[i]].getMassA();
 				Mass *other = mass_springs[my_springs[i]].getMassB();
@@ -454,10 +467,12 @@ void CreatePlane(){
 				other->applyForce(-1.0f * spring_force);
 
 			}
+		}
+	}
 
 			
 
-		}
+		
 
 		void Load_SpringSystem()
 		{
@@ -473,18 +488,40 @@ void CreatePlane(){
 			float max_y =  std::numeric_limits<float>::min(); //
 			float max_z =  std::numeric_limits<float>::min(); //
 
+			float min_x =  std::numeric_limits<float>::max(); //surface vertic
+			float min_y =  std::numeric_limits<float>::max(); //
+			float min_z =  std::numeric_limits<float>::max(); //
+
 			for(int i = 0; i < masses.size(); i++) {
 				if(masses[i]->curr_pos.x > max_x){ 
+					max_x = masses[i]->curr_pos.x;
 					max_x_mass_id = i;
 				}
 				if(masses[i]->curr_pos.y > max_y){ 
+					max_y = masses[i]->curr_pos.y;
 					max_y_mass_id = i;
 				}
 				if(masses[i]->curr_pos.z > max_z){ 
+					max_z = masses[i]->curr_pos.z;
 					max_z_mass_id = i;
 				}
+				if(masses[i]->curr_pos.x < min_x){ 
+					min_x = masses[i]->curr_pos.x;
+					min_x_mass_id = i;
+				}
+				if(masses[i]->curr_pos.y < min_y){ 
+					min_y = masses[i]->curr_pos.y;
+					min_y_mass_id = i;
+				}
+				if(masses[i]->curr_pos.z < min_z){ 
+					min_z = masses[i]->curr_pos.z;
+					min_z_mass_id = i;
+				}
+				
 			}
-				max_id = max_y_mass_id;
+			std::cout<<"min x  "<< min_x<<"min y  "<<min_y <<"min z   "<<min_z<<std::endl;
+			std::cout<<"max x  "<< max_x<<"max y  "<<max_y <<"max z   "<<max_z<<std::endl;
+			max_id = max_y_mass_id;
 		}
 		
 	void load_smallSpheres()
@@ -1041,7 +1078,7 @@ void CreatePlane(){
 		aspect = static_cast<float>(window_width) / window_height;
 		glm::mat4 projection_matrix = Perspective(45.0f, aspect, 0.0001f, 1000.0f);
 
-		for(int k = 0; k < 20; k++)
+		for(int k = 0; k < 10; k++)
 		{
 
 			///////////////////////////////////////////////////
@@ -1060,7 +1097,7 @@ void CreatePlane(){
 				for(int j = 0; j < masses.size(); j++) {
 					masses[j]->zero_out_forces();
 					//std::cout << "Mass [ " << j << "] has position = " << to_string(masses[j]->curr_pos) << std::endl;
-					masses[j]->updatePos(timeStep*0.6f);
+					masses[j]->updatePos(timeStep*0.5f);
 					//std::cout << "Mass [ " << j << "] update POS has position = " << to_string(masses[j]->curr_pos) << std::endl;
 				}
 
@@ -1069,21 +1106,76 @@ void CreatePlane(){
 				calc_NetForces(masses[j]->m_id);
 			}
 
-			if(masses[max_id]->curr_pos.y < floor_cutoff)
-				max_id_floorHit = true;
-			for(int j = 0; j < masses.size(); j++) {
+			// if(masses[min_y_mass_id]->curr_pos.y <= floor_cutoff && max_id_floorHit == false)
+			// {
+			// 	max_id_floorHit = true;
+			// 	// for(int j = 0; j < masses.size(); j++) 
+			// 	// {
+			// 	// 	masses[j]->vel = glm::vec3(0,0,0);
+			// 	// }
+			// }
+			
+		 //    if(masses[min_y_mass_id]->curr_pos.y > floor_cutoff && max_id_floorHit == true)
+		 //    {
+		 //    	max_id_floorHit = false;
+		 //    }
+
+		 //    if(max_id_floorHit == true)
+			// {
+			// 	for(int j = 0; j < masses.size(); j++) 
+			// 	{
+			// 		if(masses[j]->force.y >=0)
+			// 		{
+			// 			masses[j]->vel = -(masses[j]->vel)+glm::vec3(0,2,0);
+							
+			// 		}
+			// 	}
+			// 	spring_breaks = true;
+			// }
+			// else if(max_id_floorHit == false)
+			// {
+			// 	if(masses[min_y_mass_id]->force.y <=0 && direction_going_up == true)
+			// 	{
+			// 		for(int j = 0; j < masses.size(); j++) 
+			// 		{
+			// 			masses[j]->vel = -(masses[j]->vel);
+			// 		}
+			// 		std::cout<<"ttttttt"<<std::endl;
+			// 		direction_going_up = false;
+			// 	}
+			// }
+
+		 
+		  
+		    for(int j = 0; j < masses.size(); j++) 
+		    {
 				masses[j]->applyForce(gravity);
-				if(masses[j]->curr_pos.y < floor_cutoff)
-				{
-					glm::vec3 mass_floor_dist = masses[j]->curr_pos - glm::vec3(0,floor_cutoff,0) ;
-					float floor_dist = glm::length(mass_floor_dist);
-					masses[j]->applyForce(floor_coeff * glm::vec3(0,floor_dist,0));
-				}
 			}
+			if(masses[max_y_mass_id]->curr_pos.y<= floor_cutoff)
+			{
+				 for(int j = 0; j < masses.size(); j++) 
+				 {
+				 	float mass_floor_dist = masses[j]->curr_pos.y -floor_cutoff;	
+					masses[j]->applyForce(glm::vec3(0,-floor_coeff * mass_floor_dist,0));
+				 }		
+			}
+		
+		    
+		   
+			
+				
+				
+				// if(masses[j]->curr_pos.y < floor_cutoff)
+				// {
+				// 	glm::vec3 mass_floor_dist = masses[j]->curr_pos - glm::vec3(0,floor_cutoff,0) ;
+				// 	float floor_dist = glm::length(mass_floor_dist);
+				// 	masses[j]->applyForce(floor_coeff * glm::vec3(0,floor_dist,0));
+				// }
+				
 
 			// [4] calculate v_i for each m_i
 			for(int j = 0; j < masses.size(); j++) {
-				masses[j]->updateVel(timeStep * 0.6f);
+				masses[j]->updateVel(timeStep * 0.5f);
 				//std::cout << "Mass [ " << j << "] has velocity = " << masses[j]->vel << std::endl;
 			}
 
